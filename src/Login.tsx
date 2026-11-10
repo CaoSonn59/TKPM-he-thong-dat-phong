@@ -8,9 +8,14 @@ export default function Login() {
   const [id, setId] = useState('')
   const [pw, setPw] = useState('')
   const [err, setErr] = useState<string | null>(null)
-  const submit = (e: FormEvent) => {
+  const [loading, setLoading] = useState(false)
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
-    const er = login(id, pw)
+    if (loading) return
+    setLoading(true)
+    setErr(null)
+    const er = await login(id, pw)
+    setLoading(false)
     setErr(er)
     if (er) setPw('') // giữ lại tên đăng nhập để nhập lại
   }
@@ -26,12 +31,14 @@ export default function Login() {
           <h2 className="text-lg font-semibold max-md:hidden">Đăng nhập</h2>
           {err && <div className="alert" role="alert"><Icon n={err.startsWith('Tài khoản') ? 'ban' : 'alert'} />{err}</div>}
           <Field label="Tên đăng nhập" req id="login-id">
-            <input id="login-id" className="inp" required value={id} onChange={e => setId(e.target.value)} placeholder="Mã NV / Mã SV / Mã GV" autoComplete="username" />
+            <input id="login-id" className="inp" required value={id} onChange={e => setId(e.target.value)} placeholder="Mã NV / Mã SV / Mã GV" autoComplete="username" disabled={loading} />
           </Field>
           <Field label="Mật khẩu" req id="login-pw" hint="Mật khẩu mặc định là mã định danh của bạn.">
             <PwInput id="login-pw" required value={pw} onChange={e => setPw(e.target.value)} placeholder="Nhập mật khẩu" autoComplete="current-password" />
           </Field>
-          <button className="btn bp h-11! text-[15px]">Đăng nhập</button>
+          <button className="btn bp h-11! text-[15px]" disabled={loading}>
+            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+          </button>
         </form>
       </div>
     </main>

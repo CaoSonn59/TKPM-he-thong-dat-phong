@@ -1,21 +1,76 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import { ADMIN_PW, NOW, TODAY, seed, type Booking, type Room, type Status, type User } from './data'
+import { ADMIN_PW, NOW, TODAY, seed, type Booking, type Room, type Sex, type Status, type User } from './data'
 import { isFree, pwErrors, type PwErr } from './logic'
 
 export interface Toast { id: number; title: string; sub?: string; bad?: boolean }
 
+export interface AuthUser {
+  user_id: string
+  full_name: string
+  gender: Sex
+  role: string
+  status: string
+  created_at: string
+  groups: unknown[]
+}
+
+interface LoginResponse {
+  success: boolean
+  message: string
+  data?: {
+    token: string
+    expires_at: string
+    user: AuthUser
+  }
+}
+
+const API_BASE = 'http://localhost:8080/api/v1'
+const STORAGE_TOKEN_KEY = 'dp_token'
+const STORAGE_USER_KEY = 'dp_user'
+const STORAGE_EXPIRES_KEY = 'dp_expires_at'
+
+function loadStoredAuth(): { token: string | null; authUser: AuthUser | null; session: string | null } {
+  try {
+    const token = localStorage.getItem(STORAGE_TOKEN_KEY)
+    const rawUser = localStorage.getItem(STORAGE_USER_KEY)
+    const expiresAt = localStorage.getItem(STORAGE_EXPIRES_KEY)
+    if (!token || !rawUser) return { token: null, authUser: null, session: null }
+    if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
+      localStorage.removeItem(STORAGE_TOKEN_KEY)
+      localStorage.removeItem(STORAGE_USER_KEY)
+      localStorage.removeItem(STORAGE_EXPIRES_KEY)
+      return { token: null, authUser: null, session: null }
+    }
+    const authUser = JSON.parse(rawUser) as AuthUser
+    const session = authUser.role === 'Admin' || authUser.user_id === 'admin' ? 'admin' : authUser.user_id
+    return { token, authUser, session }
+  } catch {
+    return { token: null, authUser: null, session: null }
+  }
+}
+
 // shortcut: everything lives in memory (lost on reload) and passwords are plain text in state;
 // replace this file with API calls when the backend exists.
 function useStoreValue() {
+  const initialAuth = loadStoredAuth()
   const [users, setUsers] = useState(seed.users)
   const [groups, setGroups] = useState(seed.groups)
   const [rooms, setRooms] = useState(seed.rooms)
   const [bookings, setBookings] = useState(seed.bookings)
   const [adminPw, setAdminPw] = useState(ADMIN_PW)
-  const [session, setSession] = useState<string | null>(null) // 'admin' hoặc mã định danh
+  const [token, setToken] = useState<string | null>(initialAuth.token)
+  const [authUser, setAuthUser] = useState<AuthUser | null>(initialAuth.authUser)
+  const [session, setSession] = useState<string | null>(initialAuth.session) // 'admin' hoặc mã định danh
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  const me = users.find(u => u.id === session) ?? null
+  const me = users.find(u => u.id === session) ?? (authUser && session !== 'admin' ? {
+    id: authUser.user_id,
+    name: authUser.full_name,
+    sex: authUser.gender,
+    active: authUser.status === 'Đang hoạt động',
+    created: authUser.created_at.slice(0, 10),
+    pw: '',
+  } : null)
   const myGroups = groups.filter(g => me && g.members.includes(me.id))
   const nextId = (xs: { id: number }[]) => Math.max(0, ...xs.map(x => x.id)) + 1
 
@@ -26,27 +81,74 @@ function useStoreValue() {
     setTimeout(() => dismiss(id), 4500)
   }
 
+  const clearAuth = () => {
+    setToken(null)
+    setAuthUser(null)
+    setSession(null)
+    localStorage.removeItem(STORAGE_TOKEN_KEY)
+    localStorage.removeItem(STORAGE_USER_KEY)
+    localStorage.removeItem(STORAGE_EXPIRES_KEY)
+  }
+
   return {
-    users, groups, rooms, bookings, session, me, myGroups, toasts, toast, dismiss,
+    users, groups, rooms, bookings, session, token, authUser, me, myGroups, toasts, toast, dismiss,
     roomOf: (id: number) => rooms.find(r => r.id === id)!,
     userLabel: (id: string) => `${id} – ${users.find(u => u.id === id)?.name ?? ''}`,
     groupName: (id: number | null) => id === null ? 'Cá nhân' : groups.find(g => g.id === id)?.name ?? '(nhóm đã xóa)',
 
-    login(id: string, pw: string): string | null {
+    async login(id: string, pw: string): Promise<string | null> {
       id = id.trim()
-      const u = users.find(x => x.id === id)
-      if (!(id === 'admin' ? pw === adminPw : u?.pw === pw)) return 'Tên đăng nhập hoặc mật khẩu không chính xác'
-      if (u && !u.active) return 'Tài khoản đã ngưng sử dụng, vui lòng liên hệ quản trị viên'
-      setSession(id)
-      return null
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: id, password: pw }),
+        })
+        const json = (await res.json()) as LoginResponse
+        if (!res.ok || !json.success || !json.data) {
+          return json.message || 'Tên đăng nhập hoặc mật khẩu không chính xác'
+        }
+        const { token: jwt, expires_at, user } = json.data
+        if (user.status && user.status !== 'Đang hoạt động') {
+          return 'Tài khoản đã ngưng sử dụng, vui lòng liên hệ quản trị viên'
+        }
+        localStorage.setItem(STORAGE_TOKEN_KEY, jwt)
+        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user))
+        localStorage.setItem(STORAGE_EXPIRES_KEY, expires_at)
+        setToken(jwt)
+        setAuthUser(user)
+        const nextSession = user.role === 'Admin' || user.user_id === 'admin' ? 'admin' : user.user_id
+        if (nextSession !== 'admin') {
+          setUsers(us => {
+            const mapped: User = {
+              id: user.user_id,
+              name: user.full_name,
+              sex: user.gender,
+              active: user.status === 'Đang hoạt động',
+              created: user.created_at.slice(0, 10),
+              pw,
+            }
+            return us.some(x => x.id === user.user_id)
+              ? us.map(x => x.id === user.user_id ? { ...x, ...mapped } : x)
+              : [mapped, ...us]
+          })
+        } else {
+          setAdminPw(pw)
+        }
+        setSession(nextSession)
+        toast(json.message || 'Đăng nhập thành công', user.full_name)
+        return null
+      } catch {
+        return 'Không thể kết nối đến máy chủ, vui lòng thử lại sau'
+      }
     },
-    logout: () => setSession(null),
+    logout: clearAuth,
     changePw(cur: string, next: string, again: string): PwErr {
       const e = pwErrors(cur, next, again, me ? me.pw : adminPw, session!)
       if (Object.keys(e).length) return e
       if (me) setUsers(us => us.map(u => u.id === me.id ? { ...u, pw: next } : u))
       else setAdminPw(next)
-      setSession(null)
+      clearAuth()
       toast('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.')
       return e
     },

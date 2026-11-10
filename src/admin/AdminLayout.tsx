@@ -39,13 +39,16 @@ export default function AdminLayout() {
 export function Page({ title, crumb, action, narrow, foot, children }: {
   title: string; crumb?: ReactNode; action?: ReactNode; narrow?: boolean; foot?: ReactNode; children: ReactNode
 }) {
+  const { authUser } = useStore()
+  const roleLabel = authUser?.role || 'Admin'
+  const fullName = authUser?.full_name || 'Quản trị viên hệ thống'
   return <>
     <header className="top">
       <div><div className="crumb">{crumb ?? `Quản trị / ${title}`}</div><h1 className="text-xl font-bold">{title}</h1></div>
       <div className="flex items-center gap-3">
         {action}
-        <AccountMenu initials="A" label="Admin">
-          <div className="px-2.5 pt-2 pb-2.5 mb-1.5 border-b border-gray-100"><div className="font-semibold">Admin</div><div className="muted small">Quản trị viên hệ thống</div></div>
+        <AccountMenu initials={roleLabel[0]?.toUpperCase() || 'A'} label={roleLabel}>
+          <div className="px-2.5 pt-2 pb-2.5 mb-1.5 border-b border-gray-100"><div className="font-semibold">{roleLabel}</div><div className="muted small">{fullName}</div></div>
         </AccountMenu>
       </div>
     </header>
