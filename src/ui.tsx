@@ -1,5 +1,5 @@
-// Thành phần giao diện dùng chung cho End-User, không phụ thuộc store.
-import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
+// Thành phần giao diện dùng chung cho End-User & Admin, không phụ thuộc store.
+import { Fragment, useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { STATUS, type Status } from './data'
 
 const P = {
@@ -12,6 +12,9 @@ const P = {
   eyeOff: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /><path d="M3 3l18 18" /></>,
   x: <path d="M18 6 6 18M6 6l12 12" />,
   check: <path d="M20 6 9 17l-5-5" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  edit: <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />,
+  trash: <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
   filter: <path d="M4 6h16M7 12h10M10 18h4" />,
   refresh: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></>,
@@ -20,12 +23,19 @@ const P = {
   up: <path d="m18 15-6-6-6 6" />,
   left: <path d="m15 18-6-6 6-6" />,
   right: <path d="m9 18 6-6-6-6" />,
+  sort: <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />,
+  sortDown: <path d="m7 10 5 5 5-5" />,
+  sortUp: <path d="m7 14 5-5 5 5" />,
+  grid: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
   cal: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
+  calCheck: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4" /></>,
   calDots: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></>,
   door: <path d="M3 21h18M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M14 12h.01" />,
   user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
   person: <><circle cx="9" cy="8" r="4" /><path d="M2 21a7 7 0 0 1 14 0" /></>,
   users: <><circle cx="9" cy="8" r="4" /><path d="M2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 9M22 21a7 7 0 0 0-4-6.3" /></>,
+  chart: <path d="M3 3v18h18M8 17v-5M13 17V8M18 17V5" />,
+  collapse: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18M16 10l-2 2 2 2" /></>,
   lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
   logout: <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />,
   star: <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1Z" />,
@@ -196,5 +206,52 @@ export function MultiPick({ options, value, onChange, placeholder, free, id, tak
       )}
     </div>
   )
+}
+
+export function useSort<T extends object>(rows: T[], init: keyof T & string, initDir: 1 | -1 = 1) {
+  const [s, setS] = useState<{ k: keyof T & string; d: 1 | -1 }>({ k: init, d: initDir })
+  const sorted = [...rows].sort((a, b) => {
+    const x = a[s.k], y = b[s.k]
+    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'vi')) * s.d
+  })
+  const th = (k: keyof T & string, label: string) => {
+    const on = s.k === k
+    return (
+      <th aria-sort={on ? (s.d > 0 ? 'ascending' : 'descending') : undefined}>
+        <button className={`thb ${on ? 'text-indigo-800' : ''}`} onClick={() => setS({ k, d: on && s.d > 0 ? -1 : 1 })}>
+          {label}<Icon n={on ? (s.d > 0 ? 'sortUp' : 'sortDown') : 'sort'} s={16} className={on ? '' : 'text-gray-400'} />
+        </button>
+      </th>
+    )
+  }
+  return { sorted, th }
+}
+
+export function usePaged<T>(rows: T[], initial = 10, sizes = true) {
+  const [size, setSize] = useState(initial)
+  const [page, setPage] = useState(1)
+  const n = rows.length, pages = Math.max(1, Math.ceil(n / size)), p = Math.min(page, pages)
+  const nums = [...new Set([1, p - 1, p, p + 1, pages])].filter(x => x >= 1 && x <= pages)
+  const pager = (
+    <div className="pager">
+      <div className="flex items-center gap-2">
+        Hiển thị {n ? (p - 1) * size + 1 : 0}–{Math.min(p * size, n)} trên {n}
+        {sizes && <> · <select className="sel h-[34px] px-2" aria-label="Số dòng mỗi trang" value={size} onChange={e => { setSize(+e.target.value); setPage(1) }}>
+          {[10, 20, 50].map(x => <option key={x} value={x}>{x} / trang</option>)}
+        </select></>}
+      </div>
+      <div className="flex items-center gap-1">
+        <button className="pb" disabled={p === 1} aria-label="Trang trước" onClick={() => setPage(p - 1)}><Icon n="left" s={16} /></button>
+        {nums.map((x, i) => (
+          <Fragment key={x}>
+            {i > 0 && x - nums[i - 1] > 1 && <span className="muted px-1">…</span>}
+            <button className={`pb ${x === p ? 'on' : ''}`} aria-current={x === p ? 'page' : undefined} onClick={() => setPage(x)}>{x}</button>
+          </Fragment>
+        ))}
+        <button className="pb" disabled={p === pages} aria-label="Trang sau" onClick={() => setPage(p + 1)}><Icon n="right" s={16} /></button>
+      </div>
+    </div>
+  )
+  return { rows: rows.slice((p - 1) * size, p * size), pager }
 }
 

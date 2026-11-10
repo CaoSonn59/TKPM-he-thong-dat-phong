@@ -1,6 +1,6 @@
-// Thành phần dùng chung của End-User có đọc store: toast, menu tài khoản, đổi mật khẩu, các khối chi tiết lịch đặt.
+// Thành phần dùng chung của End-User & Admin có đọc store: toast, menu tài khoản, đổi mật khẩu, các khối chi tiết lịch đặt.
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { cap, dmy, loc, type Booking, type Room } from './data'
+import { cap, dmy, initials, loc, type Booking, type Room } from './data'
 import { strength, type PwErr } from './logic'
 import { useStore } from './store'
 import { Field, Icon, Modal, PwInput } from './ui'
@@ -22,9 +22,9 @@ export function Toasts() {
 
 const METER = [['', '#E5E7EB', ''], ['Yếu', '#DC2626', '#B91C1C'], ['Trung bình', '#D97706', '#92400E'], ['Khá', '#D97706', '#92400E'], ['Mạnh', '#16A34A', '#166534']]
 
-// U10 / M10 — Đổi mật khẩu cho End-User. Thành công thì store tự đăng xuất về trang Đăng nhập (U1).
+// U10 / M10 / A13 — Đổi mật khẩu dùng chung cho End-User và Admin. Thành công thì store tự đăng xuất về trang Đăng nhập.
 export function ChangePassword({ onClose }: { onClose: () => void }) {
-  const { changePw } = useStore()
+  const { changePw, session } = useStore()
   const [v, setV] = useState({ cur: '', next: '', again: '' })
   const [e, setE] = useState<PwErr>({})
   const s = strength(v.next)
@@ -38,7 +38,7 @@ export function ChangePassword({ onClose }: { onClose: () => void }) {
           <PwInput id="pw-cur" bad={!!e.cur} value={v.cur} onChange={set('cur')} autoComplete="current-password" />
         </Field>
         <Field label="Mật khẩu mới" req id="pw-next" err={e.next}
-          hint="Tối thiểu 6 ký tự, khác mật khẩu hiện tại và khác mã định danh.">
+          hint={`Tối thiểu 6 ký tự, khác mật khẩu hiện tại và khác ${session === 'admin' ? 'tên đăng nhập' : 'mã định danh'}.`}>
           <PwInput id="pw-next" bad={!!e.next} value={v.next} onChange={set('next')} autoComplete="new-password" />
           <div className="flex items-center gap-2.5 mt-2">
             <div className="grid grid-cols-4 gap-1 flex-1">{[1, 2, 3, 4].map(i => <span key={i} className="h-1.5 rounded-sm" style={{ background: i <= s ? METER[s][1] : '#E5E7EB' }} />)}</div>
@@ -102,7 +102,7 @@ export function ReasonBox({ b, self }: { b: Booking; self?: boolean }) {
   )
 }
 
-export function Members({ b, search }: { b: Booking; search?: boolean }) {
+export function Members({ b, avatars, search }: { b: Booking; avatars?: boolean; search?: boolean }) {
   const { users, groups, session } = useStore()
   const [open, setOpen] = useState(b.status !== 'no' && b.status !== 'cancel')
   const [all, setAll] = useState(false)
@@ -122,12 +122,9 @@ export function Members({ b, search }: { b: Booking; search?: boolean }) {
       {open && <>
         {search && <div className="field"><Icon n="search" s={16} /><input className="inp h-[38px]!" type="search" placeholder="Tìm theo mã hoặc họ tên" aria-label="Tìm thành viên" value={q} onChange={e => setQ(e.target.value)} /></div>}
         <div>
-          {shown.map(u => (
-            <div key={u.id} className="mem justify-between">
-              <span>{u.name} {u.id === session && <span className="muted small">(bạn)</span>}</span>
-              <span className="muted small">{u.id}</span>
-            </div>
-          ))}
+          {shown.map(u => avatars
+            ? <div key={u.id} className="mem"><span className="av">{initials(u.name)}</span><div><div className="font-medium">{u.name}</div><div className="muted small">{u.id}{u.id === b.by && ' · người đặt'}</div></div></div>
+            : <div key={u.id} className="mem justify-between"><span>{u.name} {u.id === session && <span className="muted small">(bạn)</span>}</span><span className="muted small">{u.id}</span></div>)}
         </div>
         {!all && !q && list.length > 5 && <button className="lnk self-start" onClick={() => setAll(true)}>Xem thêm {list.length - 5} thành viên</button>}
       </>}

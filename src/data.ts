@@ -20,6 +20,7 @@ export interface Booking {
 // switch to the real clock when a backend owns booking status.
 export const TODAY = '2026-11-09'
 export const NOW = '10:30'
+export const ADMIN_PW = 'admin123'
 
 export const AMENITIES = ['Máy chiếu', 'Bảng trắng', 'Micro', 'Loa', 'Điều hòa', 'TV']
 export const STAR_LABELS = ['Rất tệ', 'Tệ', 'Bình thường', 'Tốt', 'Rất tốt']
