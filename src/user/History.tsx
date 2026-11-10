@@ -1,4 +1,4 @@
-// U6 — Lịch sử đặt phòng, U7 — Chi tiết lịch đặt (drawer), U8 — Hủy, U9 — Đánh giá / Sửa đánh giá
+// U6 / M6 — Lịch sử đặt phòng, U7 — Chi tiết lịch đặt (drawer), U8 — Hủy, U9 — Đánh giá / Sửa đánh giá
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { STAR_LABELS, STATUS, STATUSES, TODAY, dmy, longDate, when, type Booking, type Status } from '../data'
@@ -30,6 +30,9 @@ function Rate({ b, onClose }: { b: Booking; onClose: () => void }) {
               ))}
             </div>
             <span className="font-semibold text-amber-800">{STAR_LABELS[stars - 1]}</span>
+          </div>
+          <div className="flex gap-1 text-[11px] text-gray-500 mt-1" aria-hidden="true">
+            {STAR_LABELS.map(l => <span key={l} className="w-11 text-center leading-tight">{l}</span>)}
           </div>
           {err && <div className="err" role="alert"><Icon n="alert" s={16} />Vui lòng chọn số sao</div>}
         </fieldset>
@@ -90,6 +93,7 @@ export default function History() {
   const { bookings, me, myGroups, roomOf, groupName, userLabel, setStatus, toast } = useStore()
   const [tab, setTab] = useState<Status | ''>('')
   const [f, setF] = useState({ src: '', from: '', to: '' })
+  const [showFilter, setShowFilter] = useState(false)
   const [view, setView] = useState<number | null>(null)
   const [cancel, setCancel] = useState<Booking | null>(null)
   const [rate, setRate] = useState<Booking | null>(null)
@@ -116,7 +120,14 @@ export default function History() {
   const who = (b: Booking) => b.by === id ? <span className="you">Bạn</span> : userLabel(b.by)
 
   return <>
-    <h1 className="text-[22px] md:text-2xl font-bold">Lịch sử đặt phòng</h1>
+    <div className="flex items-center justify-between">
+      <h1 className="text-[22px] md:text-2xl font-bold">Lịch sử đặt phòng</h1>
+      {all.length > 0 && (
+        <button type="button" className="btn w-10! h-10! p-0! rounded-xl! md:hidden" aria-label="Bộ lọc" aria-expanded={showFilter} onClick={() => setShowFilter(!showFilter)}>
+          <Icon n="filter" />
+        </button>
+      )}
+    </div>
     {all.length === 0 ? (
       <div className="card rounded-2xl!"><Empty icon="cal" title="Bạn chưa có lịch đặt phòng nào"><Link className="btn bp" to="/">Tìm phòng ngay</Link></Empty></div>
     ) : (
@@ -128,7 +139,7 @@ export default function History() {
             </button>
           ))}
         </div>
-        <div className="filters max-md:px-0! max-md:border-0!">
+        <div className={`filters max-md:px-0! max-md:border-0! ${showFilter ? '' : 'max-md:hidden'}`}>
           <label className="small muted" htmlFor="h-src">Nguồn</label>
           <select className="sel" id="h-src" value={f.src} onChange={e => setF({ ...f, src: e.target.value })}>
             <option value="">Tất cả</option><option value="self">Cá nhân</option>{myGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -184,9 +195,11 @@ export default function History() {
     {cancel && (
       <Confirm title="Hủy lịch đặt phòng?" icon="ban" ok="Đồng ý hủy" cancel="Không" reason="Lý do hủy (không bắt buộc)" placeholder="Ví dụ: Nhóm đổi lịch họp" onClose={() => setCancel(null)}
         onOk={r => { setStatus(cancel.id, 'cancel', r, 'user'); toast('Hủy đặt phòng thành công', 'Lịch chuyển sang tab “Đã hủy”.'); setCancel(null) }}>
-        <strong className="text-gray-900">{cancel.title}</strong> – {roomOf(cancel.roomId).name}, {when(cancel)}. Khung giờ sẽ được giải phóng cho người khác đặt.
+        <div><strong className="text-gray-900">{cancel.title}</strong> – {roomOf(cancel.roomId).name}, {when(cancel)}.</div>
+        <div>Khung giờ sẽ được giải phóng cho người khác đặt.</div>
       </Confirm>
     )}
     {rate && <Rate b={rate} onClose={() => setRate(null)} />}
   </>
 }
+

@@ -20,7 +20,6 @@ export interface Booking {
 // switch to the real clock when a backend owns booking status.
 export const TODAY = '2026-11-09'
 export const NOW = '10:30'
-export const ADMIN_PW = 'admin123'
 
 export const AMENITIES = ['Máy chiếu', 'Bảng trắng', 'Micro', 'Loa', 'Điều hòa', 'TV']
 export const STAR_LABELS = ['Rất tệ', 'Tệ', 'Bình thường', 'Tốt', 'Rất tốt']
@@ -42,32 +41,32 @@ export const initials = (name: string) => {
   return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase()
 }
 
-// ---- Dữ liệu mẫu (theo 2 file brief) ----
+// ---- Dữ liệu mẫu End-User (bám sát báo cáo đồ án và bộ ảnh NguoiDung / Mobile) ----
 
 const u = (id: string, name: string, sex: Sex, created: string, active = true): User => ({ id, name, sex, active, created, pw: id })
 const named: User[] = [
-  u('GV0057', 'Ngô Đức Thành', 'Nam', '2026-11-05'),
-  u('NV0789', 'Võ Thanh Tâm', 'Nữ', '2026-10-20'),
-  u('NV0512', 'Đỗ Quang Huy', 'Nam', '2026-10-18'),
+  u('GV0042', 'Lê Thị Hoa', 'Nữ', '2026-08-10'),
   u('SV2026001', 'Nguyễn Văn An', 'Nam', '2026-09-01'),
   u('SV2026002', 'Hoàng Gia Bảo', 'Nam', '2026-09-01'),
   u('SV2026003', 'Đặng Thu Hà', 'Nữ', '2026-09-01'),
+  u('SV2026007', 'Trịnh Bảo Ngọc', 'Nữ', '2026-09-01'),
   u('SV2026004', 'Lý Thanh Sơn', 'Nam', '2026-09-01'),
   u('SV2026005', 'Mai Ngọc Trâm', 'Nữ', '2026-09-01'),
   u('SV2026006', 'Phan Đức Long', 'Nam', '2026-09-01'),
-  u('SV2026007', 'Trịnh Bảo Ngọc', 'Nữ', '2026-09-01'),
   u('SV2026008', 'Cao Văn Lực', 'Nam', '2026-09-01'),
   u('SV2026009', 'Hồ Thị Mai', 'Nữ', '2026-09-01'),
   u('SV2026010', 'Lâm Quốc Việt', 'Nam', '2026-09-01'),
+  u('GV0057', 'Ngô Đức Thành', 'Nam', '2026-11-05'),
+  u('NV0789', 'Võ Thanh Tâm', 'Nữ', '2026-10-20'),
+  u('NV0512', 'Đỗ Quang Huy', 'Nam', '2026-10-18'),
   u('NV0456', 'Phạm Minh Khoa', 'Nam', '2026-08-22', false),
   u('NV0123', 'Trần Thị Bình', 'Nữ', '2026-08-15'),
   u('NV0231', 'Nguyễn Thị Lan', 'Nữ', '2026-08-15'),
   u('NV0318', 'Lý Hoàng Phúc', 'Nam', '2026-08-15'),
-  u('GV0042', 'Lê Thị Hoa', 'Nữ', '2026-08-10'),
   u('SV2021045', 'Bùi Minh Thư', 'Nữ', '2026-08-02'),
 ]
 
-// Sinh thêm người dùng để các nhóm đủ sĩ số như trong brief (45, 38, 12, 8, 15).
+// Sinh thêm người dùng để các nhóm đủ sĩ số như trong thiết kế (Lớp CNTT2026/11: 45, CLB Lập trình: 20...).
 const HO = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Vũ', 'Đặng', 'Bùi', 'Đỗ', 'Hồ']
 const TEN: [string, Sex][] = [
   ['Minh Anh', 'Nữ'], ['Quốc Bảo', 'Nam'], ['Thùy Chi', 'Nữ'], ['Tiến Dũng', 'Nam'], ['Thu Giang', 'Nữ'], ['Gia Huy', 'Nam'],
@@ -102,34 +101,37 @@ const rooms: Room[] = [
   r(2, 'Phòng A1', 20, 40, 'Tòa A', 'Lầu 1', ['Máy chiếu', 'Bảng trắng'], 4.2, 12),
   r(3, 'Phòng A2', 10, 30, 'Tòa A', 'Lầu 1', ['Bảng trắng'], 3.8, 9),
   r(4, 'Phòng B1', 30, 60, 'Tòa B', 'Lầu 1', ['Máy chiếu', 'Loa'], null, 0),
-  r(5, 'Phòng Họp Tầng 2', 4, 12, 'Tòa B', 'Lầu 2', ['TV', 'Bảng trắng', 'Micro', 'Điều hòa'], 4.6, 14),
+  r(5, 'Phòng Họp Tầng 2', 4, 12, 'Tòa B', 'Lầu 2', ['TV', 'Micro'], 4.6, 14),
   r(6, 'Phòng Họp Tầng 3', 6, 16, 'Tòa B', 'Lầu 3', ['TV', 'Điều hòa'], 4.7, 6),
   r(7, 'Phòng B3', 30, 60, 'Tòa B', 'Lầu 3', ['Máy chiếu', 'Loa', 'Micro'], 4.0, 7),
 ]
 
 type B = [title: string, roomId: number, by: string, groupId: number | null, date: string, from: string, to: string, status: Status, sent?: string, extra?: Pick<Booking, 'reason' | 'fb'>]
 const B: B[] = [
+  // 10 lịch đặt của SV2026001 và nhóm trực thuộc (khớp U06-Lich-su-dat-phong.png)
   ['Tập văn nghệ chào mừng 20/11', 1, 'SV2026001', 1, '2026-11-20', '18:00', '21:00', 'no', '2026-11-04T20:15', { reason: { text: 'Phòng đã được ưu tiên cho hội thảo khoa.', by: 'admin', at: '2026-11-05' } }],
-  ['Tọa đàm tuyển dụng', 2, 'NV0789', 4, '2026-11-18', '14:00', '16:00', 'cancel', '2026-11-03T09:00', { reason: { text: 'Diễn giả đổi lịch.', by: 'user', at: '2026-11-06' } }],
-  ['Đào tạo hội nhập nhân viên mới', 2, 'NV0789', 4, '2026-11-16', '08:30', '11:30', 'ok', '2026-11-02T10:30'],
-  ['Demo sản phẩm nội bộ', 2, 'NV0512', 5, '2026-11-14', '09:00', '10:30', 'wait', '2026-11-09T08:12'],
   ['Seminar Trí tuệ nhân tạo', 2, 'GV0042', 1, '2026-11-13', '13:30', '16:30', 'wait', '2026-11-08T21:40'],
-  ['Họp kế hoạch Q4', 5, 'NV0123', 3, '2026-11-12', '09:00', '11:00', 'wait', '2026-11-08T16:05'],
-  ['Phỏng vấn ứng viên', 5, 'NV0789', 4, '2026-11-11', '14:00', '15:30', 'wait', '2026-11-08T10:22'],
   ['Ôn tập Cấu trúc dữ liệu', 3, 'SV2026001', null, '2026-11-10', '18:00', '20:00', 'wait', '2026-11-07T19:50'],
-  ['Họp giao ban tuần', 5, 'NV0123', 3, '2026-11-09', '15:30', '16:30', 'ok', '2026-11-05T08:40'],
-  ['Lớp bổ trợ Toán rời rạc', 3, 'GV0042', 2, '2026-11-09', '14:00', '16:00', 'ok', '2026-11-04T14:00'],
-  ['Sprint review R&D', 5, 'NV0512', 5, '2026-11-09', '10:00', '11:00', 'live', '2026-11-04T11:20'],
   ['Thực hành Lập trình Web', 2, 'GV0042', 1, '2026-11-09', '09:00', '11:30', 'live', '2026-11-03T16:45'],
-  ['Họp nhóm dự án', 3, 'NV0456', 5, '2026-11-07', '09:00', '10:00', 'no', '2026-11-05T17:30', { reason: { text: '', by: 'admin', at: '2026-11-06' } }],
-  ['Workshop thiết kế nội dung', 5, 'NV0123', 3, '2026-11-06', '14:00', '16:00', 'done', '2026-11-02T09:10', { fb: { stars: 4, text: 'Phòng sạch, máy chiếu tốt. Điều hòa hơi lạnh.', at: '2026-11-06' } }],
-  ['Bảo vệ đồ án giữa kỳ', 3, 'GV0042', 2, '2026-11-05', '08:00', '11:00', 'done', '2026-10-30T13:00'],
   ['Sinh hoạt lớp', 2, 'SV2026001', 1, '2026-11-03', '17:00', '18:00', 'done', '2026-10-30T18:20'],
   ['Họp nhóm đồ án', 3, 'SV2026001', 1, '2026-11-12', '09:00', '11:00', 'wait', '2026-11-07T15:10'],
   ['Workshop Git cơ bản', 7, 'SV2026001', 6, '2026-11-15', '08:00', '10:00', 'ok', '2026-11-05T20:00'],
   ['Họp CLB định kỳ', 5, 'SV2026001', 6, '2026-11-07', '17:00', '18:30', 'cancel', '2026-11-02T21:00', { reason: { text: 'Trùng lịch thi giữa kỳ', by: 'user', at: '2026-11-05' } }],
   ['Seminar AI', 2, 'SV2026001', null, '2026-11-05', '13:00', '15:00', 'done', '2026-11-01T08:00', { fb: { stars: 4, text: 'Phòng sạch, máy chiếu hơi mờ ở góc trái.', at: '2026-11-05' } }],
   ['Ôn thi Giải tích', 3, 'SV2026001', null, '2026-10-02', '18:00', '20:00', 'done', '2026-09-29T12:00'],
+  // Các đánh giá gần đây của Phòng A1 (khớp U04-Chi-tiet-phong.png: 4 / 12 đánh giá)
+  ['Báo cáo chuyên đề CNPM', 2, 'GV0057', 2, '2026-11-06', '08:00', '10:00', 'done', '2026-11-01T09:00', { fb: { stars: 5, text: 'Phòng rộng, máy chiếu sáng rõ. Ổ điện đủ cho cả lớp.', at: '2026-11-06' } }],
+  ['Họp chuyên môn bộ môn', 2, 'GV0057', 2, '2026-10-30', '14:00', '16:00', 'done', '2026-10-25T10:00', { fb: { stars: 3, text: 'Điều hòa chung của tầng không mát vào buổi chiều.', at: '2026-10-30' } }],
+  ['Phụ đạo Lập trình C++', 2, 'GV0042', 2, '2026-10-22', '08:00', '10:00', 'done', '2026-10-18T11:00', { fb: { stars: 5, text: 'Bảng trắng mới, bút đầy đủ.', at: '2026-10-22' } }],
+  // Các lịch giữ chỗ ngày 13/11/2026 để khớp U03a (4 phòng trống 08:00–10:00) và U03b (0 phòng trống 13:00–17:00)
+  ['Lớp học phần Mạng máy tính', 4, 'GV0057', 2, '2026-11-13', '07:30', '17:00', 'ok', '2026-11-05T08:00'],
+  ['Họp điều phối dự án', 6, 'NV0512', 5, '2026-11-13', '08:00', '17:00', 'ok', '2026-11-05T09:00'],
+  ['Thảo luận nhóm Thiết kế Web', 3, 'GV0042', 2, '2026-11-13', '13:00', '17:00', 'ok', '2026-11-06T10:00'],
+  ['Họp chiến dịch truyền thông', 5, 'NV0123', 3, '2026-11-13', '13:00', '17:00', 'ok', '2026-11-06T14:00'],
+  ['Hội thảo Hướng nghiệp', 7, 'NV0789', 4, '2026-11-13', '13:00', '17:00', 'ok', '2026-11-06T15:00'],
+  // Đánh giá mẫu cho các phòng khác
+  ['Workshop thiết kế nội dung', 5, 'NV0123', 3, '2026-11-06', '14:00', '16:00', 'done', '2026-11-02T09:10', { fb: { stars: 5, text: 'TV rõ nét, micro âm thanh tốt, không gian họp yên tĩnh.', at: '2026-11-06' } }],
+  ['Bảo vệ đồ án giữa kỳ', 3, 'GV0042', 2, '2026-11-05', '08:00', '11:00', 'done', '2026-10-30T13:00', { fb: { stars: 4, text: 'Bảng trắng sạch, ánh sáng tốt.', at: '2026-11-05' } }],
 ]
 
 export const seed = {
@@ -139,3 +141,4 @@ export const seed = {
   bookings: B.map(([title, roomId, by, groupId, date, from, to, status, sent = '', extra], i): Booking =>
     ({ id: i + 1, title, roomId, by, groupId, date, from, to, status, sent, ...extra })),
 }
+

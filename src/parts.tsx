@@ -1,6 +1,6 @@
-// Thành phần dùng chung có đọc store: toast, menu tài khoản, đổi mật khẩu, các khối chi tiết booking.
+// Thành phần dùng chung của End-User có đọc store: toast, menu tài khoản, đổi mật khẩu, các khối chi tiết lịch đặt.
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { cap, dmy, initials, loc, type Booking, type Room } from './data'
+import { cap, dmy, loc, type Booking, type Room } from './data'
 import { strength, type PwErr } from './logic'
 import { useStore } from './store'
 import { Field, Icon, Modal, PwInput } from './ui'
@@ -22,23 +22,23 @@ export function Toasts() {
 
 const METER = [['', '#E5E7EB', ''], ['Yếu', '#DC2626', '#B91C1C'], ['Trung bình', '#D97706', '#92400E'], ['Khá', '#D97706', '#92400E'], ['Mạnh', '#16A34A', '#166534']]
 
-// U10 / A13 — dùng chung cho End-User và Admin. Thành công thì store tự đăng xuất về trang Đăng nhập.
+// U10 / M10 — Đổi mật khẩu cho End-User. Thành công thì store tự đăng xuất về trang Đăng nhập (U1).
 export function ChangePassword({ onClose }: { onClose: () => void }) {
-  const { changePw, session } = useStore()
+  const { changePw } = useStore()
   const [v, setV] = useState({ cur: '', next: '', again: '' })
   const [e, setE] = useState<PwErr>({})
   const s = strength(v.next)
   const set = (k: keyof typeof v) => (ev: { target: { value: string } }) => setV({ ...v, [k]: ev.target.value })
   const submit = (ev: FormEvent) => { ev.preventDefault(); setE(changePw(v.cur, v.next, v.again)) }
   return (
-    <Modal title="Đổi mật khẩu" w="md:max-w-[480px]" onClose={onClose}
-      footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn bp" form="pw-form">Đổi mật khẩu</button></>}>
+    <Modal title="Đổi mật khẩu" mobileBack w="md:max-w-[480px]" onClose={onClose}
+      footer={<><button className="btn max-md:hidden" onClick={onClose}>Hủy</button><button className="btn bp max-md:w-full" form="pw-form">Đổi mật khẩu</button></>}>
       <form id="pw-form" className="mb" onSubmit={submit}>
         <Field label="Mật khẩu hiện tại" req id="pw-cur" err={e.cur}>
           <PwInput id="pw-cur" bad={!!e.cur} value={v.cur} onChange={set('cur')} autoComplete="current-password" />
         </Field>
         <Field label="Mật khẩu mới" req id="pw-next" err={e.next}
-          hint={`Tối thiểu 6 ký tự, khác mật khẩu hiện tại và khác ${session === 'admin' ? 'tên đăng nhập' : 'mã định danh'}.`}>
+          hint="Tối thiểu 6 ký tự, khác mật khẩu hiện tại và khác mã định danh.">
           <PwInput id="pw-next" bad={!!e.next} value={v.next} onChange={set('next')} autoComplete="new-password" />
           <div className="flex items-center gap-2.5 mt-2">
             <div className="grid grid-cols-4 gap-1 flex-1">{[1, 2, 3, 4].map(i => <span key={i} className="h-1.5 rounded-sm" style={{ background: i <= s ? METER[s][1] : '#E5E7EB' }} />)}</div>
@@ -75,16 +75,16 @@ export function AccountMenu({ initials: ini, label, wide, children }: { initials
   )
 }
 
-export const Rating = ({ r }: { r: Room }) => r.rate
-  ? <span className="star"><Icon n="star" s={16} className="fill-amber-400 stroke-amber-600" />{r.rate.toFixed(1)} <span className="muted small font-normal">({r.votes} lượt)</span></span>
+export const Rating = ({ r, compact }: { r: Room; compact?: boolean }) => r.rate
+  ? <span className="star"><Icon n="star" s={16} className="fill-amber-400 stroke-amber-600" />{r.rate.toFixed(1)}{!compact && <span className="muted small font-normal"> ({r.votes} lượt)</span>}</span>
   : <span className="muted small">Chưa có đánh giá</span>
 
 export const RoomDl = ({ r }: { r: Room }) => (
   <dl className="dl">
-    <dt>Tên phòng</dt><dd>{r.name}</dd>
+    <dt>Phòng</dt><dd>{r.name}</dd>
     <dt>Sức chứa</dt><dd>{cap(r)} người</dd>
     <dt>Vị trí</dt><dd>{loc(r)}</dd>
-    <dt>Tiện ích</dt><dd><div className="flex flex-wrap gap-1">{r.amenities.map(a => <span key={a} className="tag">{a}</span>)}</div></dd>
+    <dt>Tiện ích</dt><dd><div className="flex flex-wrap gap-1.5">{r.amenities.map(a => <span key={a} className="tag pill">{a}</span>)}</div></dd>
   </dl>
 )
 
@@ -102,31 +102,36 @@ export function ReasonBox({ b, self }: { b: Booking; self?: boolean }) {
   )
 }
 
-export function Members({ b, avatars, search }: { b: Booking; avatars?: boolean; search?: boolean }) {
+export function Members({ b, search }: { b: Booking; search?: boolean }) {
   const { users, groups, session } = useStore()
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(b.status !== 'no' && b.status !== 'cancel')
   const [all, setAll] = useState(false)
   const [q, setQ] = useState('')
   const g = groups.find(x => x.id === b.groupId)
   if (!g) return null
-  const list = users.filter(u => g.members.includes(u.id) && `${u.id} ${u.name}`.toLowerCase().includes(q.toLowerCase()))
-    .sort((x, y) => +(y.id === b.by) - +(x.id === b.by))
+  const list = g.members
+    .map(id => users.find(u => u.id === id))
+    .filter((u): u is NonNullable<typeof u> => !!u && `${u.id} ${u.name}`.toLowerCase().includes(q.toLowerCase()))
   const shown = all || q ? list : list.slice(0, 5)
   return (
     <section className="sec">
       <div className="flex items-center justify-between">
         <h3 className="sh">Thành viên tham gia · {g.members.length}</h3>
-        <button className="lnk" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Thu gọn' : 'Mở rộng'}<Icon n={open ? 'up' : 'down'} s={16} /></button>
+        <button className="lnk" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Thu gọn' : 'Mở rộng'}</button>
       </div>
       {open && <>
         {search && <div className="field"><Icon n="search" s={16} /><input className="inp h-[38px]!" type="search" placeholder="Tìm theo mã hoặc họ tên" aria-label="Tìm thành viên" value={q} onChange={e => setQ(e.target.value)} /></div>}
         <div>
-          {shown.map(u => avatars
-            ? <div key={u.id} className="mem"><span className="av">{initials(u.name)}</span><div><div className="font-medium">{u.name}</div><div className="muted small">{u.id}{u.id === b.by && ' · người đặt'}</div></div></div>
-            : <div key={u.id} className="mem justify-between"><span>{u.name} {u.id === session && <span className="muted small">(bạn)</span>}</span><span className="muted small">{u.id}</span></div>)}
+          {shown.map(u => (
+            <div key={u.id} className="mem justify-between">
+              <span>{u.name} {u.id === session && <span className="muted small">(bạn)</span>}</span>
+              <span className="muted small">{u.id}</span>
+            </div>
+          ))}
         </div>
         {!all && !q && list.length > 5 && <button className="lnk self-start" onClick={() => setAll(true)}>Xem thêm {list.length - 5} thành viên</button>}
       </>}
     </section>
   )
 }
+
