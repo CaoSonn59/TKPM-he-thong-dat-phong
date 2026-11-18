@@ -9,7 +9,11 @@ export function UserForm({ user, onClose }: { user: User | null; onClose: () => 
   const groups = useGroups()
   const { saveUser } = useUserActions()
   const [v, setV] = useState({ id: user?.id ?? '', name: user?.name ?? '', sex: (user?.sex ?? 'Nam') as Sex, active: user?.active ?? true })
-  const [gs, setGs] = useState(() => groups.filter(g => user && g.members.includes(user.id)).map(g => String(g.id)))
+  const [gs, setGs] = useState(() =>
+    user?.groups
+      ? user.groups.map(g => String(g.id))
+      : groups.filter(g => user && g.members.includes(user.id)).map(g => String(g.id))
+  )
   const [e, setE] = useState<{ id?: string; name?: string }>({})
 
   const submit = (ev: FormEvent) => {

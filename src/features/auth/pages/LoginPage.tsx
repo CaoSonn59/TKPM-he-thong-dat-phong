@@ -44,7 +44,7 @@ export default function LoginPage() {
               onChange={(e) => setId(e.target.value)}
               placeholder="Mã NV / Mã SV / Mã GV"
               autoComplete="username"
-              disabled={loading}
+              disabled={login.isPending}
             />
           </Field>
           <Field
