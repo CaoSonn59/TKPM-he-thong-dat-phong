@@ -46,7 +46,7 @@ const hr = gen('NV', 700, 6, 4, '2026-08-15')
 const rd = gen('NV', 800, 13, 4, '2026-08-16')
 const ids = (us: User[]) => us.map(x => x.id)
 
-const groups: Group[] = [
+const groups: Omit<Group, 'count'>[] = [
   { id: 1, name: 'Lớp CNTT2026/11', created: '2026-09-01', members: ['GV0042', 'SV2026001', 'SV2026002', 'SV2026003', 'SV2026007', 'SV2026008', 'SV2026009', 'SV2026010', ...ids(sv26)] },
   { id: 2, name: 'Lớp D21CQCN', created: '2026-08-02', members: ['GV0042', 'SV2021045', ...ids(sv21)] },
   { id: 3, name: 'Phòng Marketing', created: '2026-08-15', members: ['NV0123', 'NV0512', 'NV0231', 'NV0318', ...ids(mkt)] },
@@ -95,7 +95,7 @@ const B: B[] = [
 
 export const seed = {
   users: [...named, ...sv26, ...sv21, ...mkt, ...hr, ...rd],
-  groups,
+  groups: groups.map(g => ({ ...g, count: g.members!.length })),
   rooms,
   bookings: B.map(([title, roomId, by, groupId, date, from, to, status, sent = '', extra], i): Booking =>
     ({ id: i + 1, title, roomId, by, groupId, date, from, to, status, sent, ...extra })),

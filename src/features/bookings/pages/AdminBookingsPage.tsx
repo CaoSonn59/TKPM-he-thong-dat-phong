@@ -1,7 +1,7 @@
 // A7 — Danh sách đặt phòng
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Empty, Icon, usePaged, useSort } from '../../../shared/ui'
+import { Empty, Icon, Skeleton, SkeletonRows, usePaged, useSort } from '../../../shared/ui'
 import { Page } from '../../../layouts/AdminPage'
 import { useGroupName, useGroups } from '../../groups/hooks'
 import { useRoomOf, useRooms } from '../../rooms/hooks'
@@ -9,11 +9,12 @@ import { useUserLabel } from '../../users/hooks'
 import { AdminBookingDetail } from '../components/AdminBookingDetail'
 import { Decide, type Act } from '../components/DecideDialog'
 import { StatusBadge } from '../components/StatusBadge'
-import { useBookings } from '../hooks'
+import { useBookings, useBookingsQuery } from '../hooks'
 import { STATUS, STATUSES, when } from '../model'
 
 export default function AdminBookingsPage() {
   const bookings = useBookings()
+  const { isLoading, error } = useBookingsQuery()
   const rooms = useRooms()
   const groups = useGroups()
   const roomOf = useRoomOf()
@@ -37,13 +38,14 @@ export default function AdminBookingsPage() {
 
   return (
     <Page title="Đặt phòng">
+      {error && <div className="alert" role="alert"><Icon n="alert" />{error.message}</div>}
       <section className="card">
         <div className="tabs" role="tablist" aria-label="Lọc theo trạng thái">
           {(['', ...STATUSES] as const).map(s => {
             const n = base.filter(r => !s || r.status === s).length
             return (
               <button key={s} className={`tab ${tab === s ? 'on' : ''}`} role="tab" aria-selected={tab === s} onClick={() => set('tt', s)}>
-                {s ? STATUS[s][0] : 'Tất cả'} <span className={`tc ${s === 'wait' && n ? 'amber' : ''}`}>{n}</span>
+                {s ? STATUS[s][0] : 'Tất cả'} <span className={`tc ${s === 'wait' && n ? 'amber' : ''}`}>{isLoading ? <Skeleton className="w-3 h-2.5" /> : n}</span>
               </button>
             )
           })}
@@ -64,9 +66,10 @@ export default function AdminBookingsPage() {
           <button className="btn gh" onClick={clear}>Xóa lọc</button>
         </div>
         <div className="tw">
-          <table className="tbl">
+          <table className="tbl" aria-busy={isLoading}>
             <thead><tr>{th('title', 'Tiêu đề')}{th('room', 'Phòng')}<th>Người đặt</th><th>Nhóm</th>{th('time', 'Thời gian')}<th>Trạng thái</th><th className="text-right!">Thao tác</th></tr></thead>
             <tbody>
+              {isLoading && <SkeletonRows cols={['w-44', 'w-24', 'w-36', 'w-28', 'w-32', 'w-24 h-6! rounded-full', 'w-20 ml-auto']} />}
               {rows.map(({ b, ...r }) => (
                 <tr key={b.id}>
                   <td className="min-w-44"><button className="font-semibold text-left" onClick={() => set('xem', String(b.id))}>{b.title}</button></td>
@@ -88,8 +91,9 @@ export default function AdminBookingsPage() {
             </tbody>
           </table>
         </div>
-        {rows.length === 0 && <Empty title="Không có dữ liệu phù hợp" text="Thử đổi từ khóa hoặc bỏ bớt bộ lọc."><button className="btn h-9!" onClick={clear}>Xóa lọc</button></Empty>}
-        {pager}
+        {isLoading && <p className="sr-only" role="status">Đang tải danh sách đặt phòng…</p>}
+        {rows.length === 0 && !isLoading && <Empty title="Không có dữ liệu phù hợp" text="Thử đổi từ khóa hoặc bỏ bớt bộ lọc."><button className="btn h-9!" onClick={clear}>Xóa lọc</button></Empty>}
+        {!isLoading && pager}
       </section>
       {viewing && <AdminBookingDetail b={viewing} onClose={() => set('xem', '')} onAct={setAct} />}
       {act && <Decide act={act} onClose={() => setAct(null)} />}

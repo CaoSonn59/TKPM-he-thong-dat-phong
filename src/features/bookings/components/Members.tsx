@@ -2,26 +2,23 @@ import { useState } from 'react'
 import { Icon } from '../../../shared/ui'
 import { initials } from '../../../shared/lib/format'
 import { useSession } from '../../auth/hooks'
-import { useGroups } from '../../groups/hooks'
-import { useUsers } from '../../users/hooks'
+import { useGroup } from '../../groups/hooks'
 import type { Booking } from '../model'
 
 export function Members({ b, avatars, search }: { b: Booking; avatars?: boolean; search?: boolean }) {
-  const users = useUsers()
-  const groups = useGroups()
   const session = useSession()
   const [open, setOpen] = useState(true)
   const [all, setAll] = useState(false)
   const [q, setQ] = useState('')
-  const g = groups.find(x => x.id === b.groupId)
-  if (!g) return null
-  const list = users.filter(u => g.members.includes(u.id) && `${u.id} ${u.name}`.toLowerCase().includes(q.toLowerCase()))
+  const g = useGroup(b.groupId)
+  if (!g?.memberList) return null
+  const list = g.memberList.filter(u => `${u.id} ${u.name}`.toLowerCase().includes(q.toLowerCase()))
     .sort((x, y) => +(y.id === b.by) - +(x.id === b.by))
   const shown = all || q ? list : list.slice(0, 5)
   return (
     <section className="sec">
       <div className="flex items-center justify-between">
-        <h3 className="sh">Thành viên tham gia · {g.members.length}</h3>
+        <h3 className="sh">Thành viên tham gia · {g.count}</h3>
         <button className="lnk" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Thu gọn' : 'Mở rộng'}<Icon n={open ? 'up' : 'down'} s={16} /></button>
       </div>
       {open && <>

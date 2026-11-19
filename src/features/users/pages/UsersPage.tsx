@@ -15,11 +15,8 @@ export default function UsersPage() {
   const [f, setF] = useState({ q: '', group: '', active: '' })
   const [edit, setEdit] = useState<User | 'new' | null>(null)
   const list = users
-    .map(u => ({
-      ...u,
-      groupNames: u.groups ? u.groups.map(g => g.name) : groups.filter(g => g.members.includes(u.id)).map(g => g.name),
-    }))
-    .filter(u => `${u.id} ${u.name}`.toLowerCase().includes(f.q.toLowerCase()) && (!f.group || u.groupNames.includes(f.group)) && (!f.active || String(u.active) === f.active))
+    .map(u => ({ ...u, groups: (u.inGroups ?? []).map(g => g.name) }))
+    .filter(u => `${u.id} ${u.name}`.toLowerCase().includes(f.q.toLowerCase()) && (!f.group || u.groups.includes(f.group)) && (!f.active || String(u.active) === f.active))
   const { sorted, th } = useSort(list, 'created', -1)
   const { rows, pager } = usePaged(sorted)
   const clear = () => setF({ q: '', group: '', active: '' })
@@ -48,9 +45,9 @@ export default function UsersPage() {
                   <td className="nw">{u.name}</td>
                   <td>{u.sex}</td>
                   <td><div className="flex flex-wrap gap-1">
-                    {u.groupNames.slice(0, 2).map(g => <span key={g} className="tag">{g}</span>)}
-                    {u.groupNames.length > 2 && <span className="tag more" title={u.groupNames.slice(2).join(', ')}>+{u.groupNames.length - 2}</span>}
-                    {u.groupNames.length === 0 && <span className="muted">—</span>}
+                    {u.groups.slice(0, 2).map(g => <span key={g} className="tag">{g}</span>)}
+                    {u.groups.length > 2 && <span className="tag more" title={u.groups.slice(2).join(', ')}>+{u.groups.length - 2}</span>}
+                    {u.groups.length === 0 && <span className="muted">—</span>}
                   </div></td>
                   <td><span className={`badge ${u.active ? 's-ok' : 's-off'}`}>{u.active ? 'Đang hoạt động' : 'Ngưng sử dụng'}</span></td>
                   <td className="nw">{dmy(u.created)}</td>

@@ -33,12 +33,12 @@ export function BookFormDialog({ r, q, onClose, onDone, onLost }: { r: Room; q: 
         <Field label="Tiêu đề cuộc họp / buổi học" req id="bk-title" err={err}>
           <input id="bk-title" className={inp(err)} placeholder="Ví dụ: Họp nhóm đồ án KTTKPM" value={title} onChange={e => { setTitle(e.target.value); setErr('') }} />
         </Field>
-        <Field label="Nhóm sử dụng" id="bk-group" hint={g && `Nhóm có ${g.members.length} thành viên`}>
+        <Field label="Nhóm sử dụng" id="bk-group" hint={g && `Nhóm có ${g.count} thành viên`}>
           <select id="bk-group" className="inp" value={group} onChange={e => setGroup(e.target.value)}>
             <option value="">Cá nhân</option>{myGroups.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
           </select>
         </Field>
-        {g && g.members.length > r.max && <div className="warn" role="status"><Icon n="warn" /><span>Nhóm có {g.members.length} thành viên, vượt sức chứa tối đa {r.max} của phòng. Bạn vẫn có thể gửi yêu cầu.</span></div>}
+        {g && g.count > r.max && <div className="warn" role="status"><Icon n="warn" /><span>Nhóm có {g.count} thành viên, vượt sức chứa tối đa {r.max} của phòng. Bạn vẫn có thể gửi yêu cầu.</span></div>}
         <div className="flex gap-2.5 text-[13px] text-gray-600"><Icon n="info" className="text-gray-500" /><span>Yêu cầu sẽ ở trạng thái <strong className="text-amber-800">Chờ duyệt</strong> cho đến khi quản trị viên xác nhận.</span></div>
       </form>
     </Modal>
