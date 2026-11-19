@@ -12,13 +12,6 @@ export function pwClientErrors(cur: string, next: string, again: string, ident: 
   return e
 }
 
-// Kiểm tra đầy đủ khi biết sẵn mật khẩu hiện tại (giữ để kiểm thử quy tắc).
-export function pwErrors(cur: string, next: string, again: string, realPw: string, ident: string): PwErr {
-  const e = pwClientErrors(cur, next, again, ident)
-  if (cur !== realPw) e.cur = 'Mật khẩu hiện tại không chính xác'
-  return e
-}
-
 // 0 = trống, 1 Yếu … 4 Mạnh
 export const strength = (pw: string) =>
   !pw ? 0 : pw.length < 6 ? 1

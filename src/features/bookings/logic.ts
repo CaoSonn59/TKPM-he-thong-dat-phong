@@ -1,21 +1,10 @@
 // Quy tắc đặt phòng (thuần, không phụ thuộc React) — có test ở logic.test.ts
 import type { Booking } from './model.ts'
-import type { Room } from '../rooms/model.ts'
 
 export const mins = (t: string) => +t.slice(0, 2) * 60 + +t.slice(3)
 
 export interface Slot { date: string; from: string; to: string }
 export interface Query extends Slot { min?: number; amenities: string[] }
-
-export const overlaps = (a: Slot, b: Slot) => a.date === b.date && a.from < b.to && b.from < a.to
-
-// Booking Chờ duyệt / Đã chấp nhận / Đang diễn ra giữ chỗ khung giờ.
-const HOLDS = ['wait', 'ok', 'live']
-export const isFree = (roomId: number, bookings: Booking[], s: Slot) =>
-  !bookings.some(b => b.roomId === roomId && HOLDS.includes(b.status) && overlaps(b, s))
-
-export const freeRooms = (rooms: Room[], bookings: Booking[], q: Query) =>
-  rooms.filter(r => !r.maint && (!q.min || r.max >= q.min) && q.amenities.every(a => r.amenities.includes(a)) && isFree(r.id, bookings, q))
 
 export function slotErrors(s: Slot, today: string, now: string) {
   const e: { date?: string; to?: string } = {}
