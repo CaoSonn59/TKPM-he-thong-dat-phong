@@ -1,12 +1,14 @@
 // A11 — Báo cáo & thống kê
 import { useState } from 'react'
-import { Empty, Field, MultiPick, usePaged } from '../../../shared/ui'
+import { Empty, Field, Icon, MultiPick, StatsSkeleton, usePaged } from '../../../shared/ui'
 import { dmy } from '../../../shared/lib/format'
+import { monthRange } from '../../../shared/lib/clock'
+import { useBookingsQuery } from '../../bookings/hooks'
 import { Page } from '../../../layouts/AdminPage'
 import { StatusBadge } from '../../bookings/components/StatusBadge'
 import { when } from '../../bookings/model'
-import { useGroupName, useGroups } from '../../groups/hooks'
-import { useRoomOf, useRooms } from '../../rooms/hooks'
+import { useGroupName, useGroups, useGroupsQuery } from '../../groups/hooks'
+import { useRoomOf, useRooms, useRoomsQuery } from '../../rooms/hooks'
 import { useUserLabel } from '../../users/hooks'
 import { LineChart } from '../components/LineChart'
 import { useReport } from '../hooks'
@@ -17,9 +19,11 @@ export default function ReportsPage() {
   const roomOf = useRoomOf()
   const groupName = useGroupName()
   const userLabel = useUserLabel()
-  const [f, setF] = useState({ from: '2026-11-01', to: '2026-11-30', rooms: [] as string[], groups: [] as string[] })
+  const [f, setF] = useState({ ...monthRange(), rooms: [] as string[], groups: [] as string[] }) // mặc định: tháng hiện tại
   const [unit, setUnit] = useState<1 | 7>(7)
   const [tab, setTab] = useState(0)
+  const qs = [useBookingsQuery(), useRoomsQuery(), useGroupsQuery()]
+  const loading = qs.some(q => q.isLoading), error = qs.find(q => q.error)?.error
   const { valid, list, byRoom, byGroup, byTime, n, acc, rej, wait, maxRoom, maxGroup } = useReport(f, unit)
 
   const summary = [byRoom, byGroup, byTime.map(p => [p.label, p.v] as [string, number])][tab]
@@ -36,7 +40,8 @@ export default function ReportsPage() {
         </div>
       </section>
 
-      {list.length === 0 ? (
+      {error && <div className="alert" role="alert"><Icon n="alert" />{error.message}</div>}
+      {loading ? <StatsSkeleton /> : list.length === 0 ? (
         <div className="card"><Empty icon="chart" tone="bg-indigo-50 text-indigo-700" title="Không có dữ liệu trong khoảng thời gian đã chọn" text="Thử chọn khoảng ngày khác hoặc bỏ bớt phòng, nhóm." /></div>
       ) : <>
         <div className="stats">

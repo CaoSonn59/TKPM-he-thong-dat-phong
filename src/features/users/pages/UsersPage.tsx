@@ -5,16 +5,17 @@ import { dmy } from '../../../shared/lib/format'
 import { Page } from '../../../layouts/AdminPage'
 import { useGroups } from '../../groups/hooks'
 import { UserForm } from '../components/UserForm'
-import { useUsers } from '../hooks'
+import { useUsers, useUsersQuery } from '../hooks'
 import type { User } from '../model'
 
 export default function UsersPage() {
   const users = useUsers()
+  const { isLoading, error } = useUsersQuery()
   const groups = useGroups()
   const [f, setF] = useState({ q: '', group: '', active: '' })
   const [edit, setEdit] = useState<User | 'new' | null>(null)
   const list = users
-    .map(u => ({ ...u, groups: groups.filter(g => g.members.includes(u.id)).map(g => g.name) }))
+    .map(u => ({ ...u, groups: (u.inGroups ?? []).map(g => g.name) }))
     .filter(u => `${u.id} ${u.name}`.toLowerCase().includes(f.q.toLowerCase()) && (!f.group || u.groups.includes(f.group)) && (!f.active || String(u.active) === f.active))
   const { sorted, th } = useSort(list, 'created', -1)
   const { rows, pager } = usePaged(sorted)
@@ -22,6 +23,7 @@ export default function UsersPage() {
 
   return (
     <Page title="Người dùng" action={<button className="btn bp" onClick={() => setEdit('new')}><Icon n="plus" s={16} />Tạo người dùng</button>}>
+      {error && <div className="alert" role="alert"><Icon n="alert" />{error.message}</div>}
       <section className="card">
         <div className="filters">
           <div className="field flex-[1_1_300px]"><Icon n="search" /><input className="inp" type="search" placeholder="Tìm theo mã định danh hoặc họ tên" aria-label="Tìm theo mã định danh hoặc họ tên" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} /></div>
@@ -55,7 +57,7 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
-        {rows.length === 0 && <Empty title="Không có dữ liệu phù hợp" text="Thử đổi từ khóa hoặc bỏ bớt bộ lọc."><button className="btn h-9!" onClick={clear}>Xóa lọc</button></Empty>}
+        {rows.length === 0 && !isLoading && <Empty title="Không có dữ liệu phù hợp" text="Thử đổi từ khóa hoặc bỏ bớt bộ lọc."><button className="btn h-9!" onClick={clear}>Xóa lọc</button></Empty>}
         {pager}
       </section>
       {edit && <UserForm user={edit === 'new' ? null : edit} onClose={() => setEdit(null)} />}

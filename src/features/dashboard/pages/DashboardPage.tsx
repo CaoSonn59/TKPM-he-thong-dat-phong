@@ -1,28 +1,33 @@
 // A2 — Tổng quan
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Empty, Icon } from '../../../shared/ui'
+import { Empty, Icon, StatsSkeleton } from '../../../shared/ui'
 import { dmy, longDate } from '../../../shared/lib/format'
-import { NOW, TODAY } from '../../../mocks/clock'
+import { nowHM, today as todayISO } from '../../../shared/lib/clock'
 import { Page } from '../../../layouts/AdminPage'
 import { Decide, type Act } from '../../bookings/components/DecideDialog'
-import { useBookings } from '../../bookings/hooks'
+import { useBookings, useBookingsQuery } from '../../bookings/hooks'
 import { mins } from '../../bookings/logic'
 import { when } from '../../bookings/model'
-import { useRoomOf, useRooms } from '../../rooms/hooks'
+import { useRoomOf, useRooms, useRoomsQuery } from '../../rooms/hooks'
 import { loc } from '../../rooms/model'
-import { useUserLabel, useUsers } from '../../users/hooks'
+import { useUserLabel, useUsers, useUsersQuery } from '../../users/hooks'
 import { StatCard } from '../components/StatCard'
 
 const pct = (t: string) => `${(mins(t) - 420) / 7.2}%` // vị trí trên trục 07:00–19:00
 
 export default function DashboardPage() {
+  // Dữ liệu Admin đã là dữ liệu thật → dùng giờ thật thay cho đồng hồ mẫu.
+  const TODAY = todayISO(), NOW = nowHM()
   const bookings = useBookings()
   const rooms = useRooms()
   const users = useUsers()
   const roomOf = useRoomOf()
   const userLabel = useUserLabel()
   const [act, setAct] = useState<Act | null>(null)
+  // Chưa tải xong thì không hiện số 0 / "không có yêu cầu" gây hiểu nhầm.
+  const qs = [useBookingsQuery(), useRoomsQuery(), useUsersQuery()]
+  const loading = qs.some(q => q.isLoading), error = qs.find(q => q.error)?.error
   const wait = bookings.filter(b => b.status === 'wait').sort((a, b) => b.sent.localeCompare(a.sent))
   const today = bookings.filter(b => b.date === TODAY && (b.status === 'ok' || b.status === 'live'))
   const live = today.filter(b => b.status === 'live').length
@@ -32,6 +37,8 @@ export default function DashboardPage() {
   return (
     <Page title="Tổng quan">
       <p className="muted">{longDate(TODAY)} · cập nhật lúc {NOW}</p>
+      {error && <div className="alert" role="alert"><Icon n="alert" />{error.message}</div>}
+      {loading ? <StatsSkeleton /> : <>
 
       <div className="stats">
         <StatCard to="/admin/dat-phong?tt=wait" icon="clock" tone="bg-amber-100 text-amber-800" label="Booking chờ duyệt" n={wait.length}>
@@ -101,6 +108,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      </>}
 
       {act && <Decide act={act} onClose={() => setAct(null)} />}
     </Page>

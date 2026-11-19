@@ -133,26 +133,230 @@ Kiểm tra:
 
 ---
 
+## 2026-11-19
+
+### 8. Sửa lỗi sau khi merge nhánh đăng nhập của khoale193 (`35c0521` → merge `5bff150`)
+
+Nhánh này làm đăng nhập trên cấu trúc cũ (`src/store.tsx`). Lúc gộp, xung đột chưa được xử lý sạch nên build bị lỗi:
+- `src/store.tsx` cũ còn sót lại, import tới `./data` và `./logic` đã bị xóa. Không file nào dùng nên đã xóa.
+- `LoginPage.tsx` còn tham chiếu biến `loading`. Đã đổi sang `login.isPending`.
+
+Các tính năng của nhánh đó được chuyển sang cấu trúc mới:
+- **Header admin hiện tên thật:** `auth/store` lưu thêm `user` (`ApiUser`) và `expiresAt`. `AdminPage` hiện `full_name` cùng chữ viết tắt.
+- **`useMe()` dựng từ tài khoản đăng nhập** khi người dùng không có trong dữ liệu mẫu. Trước đây trường hợp này làm màn End-User bị trắng.
+- **Tự đăng xuất khi token hết hạn** ngay lúc mở lại trang (`onRehydrateStorage` kiểm tra `expiresAt`).
+- **Toast "Đăng nhập thành công"** kèm họ tên.
+
+### 9. Mapping API dữ liệu người dùng (Admin)
+
+- **`users/api.ts`:** chuyển đổi `UserResponse` ↔ `User`. Kiểu `ApiUser` chuyển từ `auth/api.ts` sang đây.
+
+| Frontend | Backend |
+|---|---|
+| `id`, `name` | `user_id`, `full_name` |
+| `sex` | `gender` (`Nam` / `Nữ` / `Khác`) |
+| `active` | `status` (`"Đang hoạt động"` / `"Ngưng sử dụng"`) |
+| `created` | `created_at` |
+| `inGroups` (mới) | `groups[] { group_id, group_name }` |
+| `pw` (giờ là tùy chọn) | — (chỉ dữ liệu mẫu có) |
+
+- **`fetchUsers()`:** gọi `GET /admin/users?limit=1000` và bỏ tài khoản có role `Admin` khỏi danh sách quản lý (đúng thiết kế A3).
+- **`saveUserApi()`:**
+  - `POST /admin/users` với `{ user_id, full_name, gender, group_ids }`. Backend tự đặt mật khẩu mặc định bằng mã định danh và trạng thái "Đang hoạt động".
+  - `PUT /admin/users/:id` gửi thêm `status`. Khi đổi mã định danh, backend tự chuyển nhóm và lịch đặt sang mã mới.
+- **`users/hooks.ts`:** `useUsersQuery()` chỉ chạy khi là admin, `useSaveUser()` lưu xong thì tải lại danh sách và hiện toast. `useUsers()` và `useUserLabel()` giữ nguyên cách gọi.
+- **`UserForm`:**
+  - Nhóm đang chọn lấy từ `inGroups` của backend.
+  - Lỗi trùng mã (409) hiện ở ô Mã định danh, lỗi khác hiện ở đầu form.
+  - Nút Lưu bị khóa trong lúc đang gửi.
+- **`UsersPage`:**
+  - Cột "Nhóm trực thuộc" lấy từ `inGroups`.
+  - Hiện thông báo khi tải lỗi, không hiện "Không có dữ liệu" trong lúc đang tải.
+- **`users/store.ts`:** bỏ `saveUser`, chỉ giữ dữ liệu mẫu cho End-User và đổi mật khẩu mẫu.
+
+**Kiểm tra:**
+- `tsc --noUnusedLocals` qua, 4/4 test qua, build thành công, không có import vòng.
+- Đã gọi thử với backend thật (chỉ các API GET):
+  - `/admin/users` trả 11 user, khớp mapping.
+  - `/admin/rooms` có id 1–7, đúng giả định ở mục 7.
+  - `/admin/groups` có id 1–6, khớp dữ liệu mẫu.
+- Chưa thử tạo hay sửa user thật (POST/PUT), để tránh ghi vào DB.
+
+**Lưu ý:**
+- Nhóm vẫn là dữ liệu mẫu. Lưu user không cập nhật thành viên trong các màn Nhóm, Thành viên booking cho đến khi nối API nhóm. (Đã xử lý ở mục 10.)
+- Đổi mật khẩu vẫn chạy trên dữ liệu mẫu, nên với tài khoản thật luôn báo "Mật khẩu hiện tại không chính xác" (mật khẩu mẫu của admin là `admin123`, mật khẩu thật là `admin`). Cần nối `PUT /auth/change-password`.
+
+---
+
+### 10. Mapping API dữ liệu nhóm người dùng (Admin) — bảng `user_groups`
+
+Backend lưu nhóm ở bảng `user_groups` (`group_id`, `group_name`, `created_at`, `updated_at`). Thành viên nằm ở bảng nối `user_group_members`.
+
+- **`groups/model.ts`:** model `Group` đổi lại cho khớp backend.
+  - Thêm `count`, lấy từ `member_count`.
+  - `members` (danh sách mã thành viên) và `memberList` (thành viên kèm họ tên) chỉ có khi lấy chi tiết nhóm, hoặc khi dùng dữ liệu mẫu.
+- **`groups/api.ts`:** chuyển đổi dữ liệu và gọi API.
+
+| Frontend | Backend |
+|---|---|
+| `id`, `name`, `created` | `group_id`, `group_name`, `created_at` |
+| `count` (mới) | `member_count` |
+| `members`, `memberList` | `members[] { user_id, full_name, gender, status }` (chỉ có ở chi tiết) |
+
+  - Danh sách: `GET /admin/groups?limit=1000`.
+  - Chi tiết: `GET /admin/groups/:id`, không truyền page/limit nên backend trả đủ thành viên.
+  - Tạo: `POST /admin/groups` với `{ group_name, user_ids }`.
+  - Sửa: `PUT /admin/groups/:id` với `{ group_name, user_ids }`, backend thay toàn bộ danh sách thành viên.
+  - Xóa: `DELETE /admin/groups/:id`.
+- **`groups/hooks.ts`:**
+  - `useGroupsQuery()`, `useGroupDetailQuery(id)`, `useSaveGroup()`, `useDeleteGroup()`.
+  - `useGroup(id)` trả về một nhóm kèm thành viên: admin lấy từ API, End-User lấy từ dữ liệu mẫu.
+  - Sau khi lưu hoặc xóa, tải lại cả nhóm lẫn người dùng (vì cột "Nhóm trực thuộc" thay đổi theo), và xóa cache chi tiết nhóm để form không khởi tạo bằng dữ liệu cũ. Lưu người dùng cũng xóa cache này.
+- **`GroupsPage`:**
+  - Số thành viên lấy từ `count`.
+  - Xóa nhóm qua API; nếu lỗi thì hiện toast.
+  - Hiện thông báo khi tải lỗi, không hiện "Không có dữ liệu" trong lúc đang tải.
+- **`GroupFormPage`:**
+  - Tải chi tiết nhóm xong mới dựng form (trong lúc chờ hiện "Đang tải…").
+  - Lỗi trùng tên (409) hiện ở ô Tên nhóm, lỗi khác hiện bằng toast.
+  - Nút Lưu bị khóa trong lúc đang gửi.
+- **`Members`** (thành viên trong chi tiết booking): lấy từ `useGroup()`, nên phía admin hiện thành viên thật.
+- **Màn End-User** (Tìm phòng, Tài khoản, xác nhận đặt phòng): số thành viên đọc từ `count`.
+- **`groups/store.ts`:** bỏ `saveGroup` và `deleteGroup`, chỉ giữ dữ liệu mẫu cho End-User.
+
+**Kiểm tra:**
+- `tsc --noUnusedLocals` qua, 4/4 test qua, build thành công, không có import vòng.
+- Đã gọi `GET /admin/groups` và `GET /admin/groups/1` với backend thật, dữ liệu khớp mapping.
+- Chưa thử tạo, sửa hay xóa nhóm thật (POST/PUT/DELETE), để tránh ghi vào DB.
+
+**Lưu ý:** booking vẫn là dữ liệu mẫu, nên chi tiết booking phía admin giờ hiện thành viên thật của nhóm (ví dụ nhóm 1 có 4 người theo seed backend) thay vì danh sách mẫu.
+
+---
+
+### 11. Mapping API dữ liệu đặt phòng (Admin) — bảng `bookings`
+
+- **`bookings/mapping.ts` (mới, có `mapping.test.ts`):** hàm thuần chuyển `BookingItemResponse` ↔ `Booking`.
+
+| Frontend `Booking` | Backend |
+|---|---|
+| `id`, `code` (mới), `title` | `booking_id`, `booking_code`, `title` |
+| `roomId`, `by`, `groupId` | `room_id`, `user_id`, `group_id` (`null` = Cá nhân) |
+| `date`, `from`, `to` | `start_time`, `end_time` (cắt chuỗi RFC3339 để giữ giờ theo máy chủ, không phụ thuộc múi giờ trình duyệt) |
+| `status` `wait/ok/live/done/no/cancel` | `status` `"Chờ duyệt"`, `"Đã chấp nhận"`, `"Đang diễn ra"`, `"Đã kết thúc"`, `"Không chấp nhận"`, `"Đã hủy"` (backend đã tính trạng thái thực tế theo giờ hiện tại) |
+| `sent` | `created_at` |
+| `reason { text, by?, at }` | `reason` (chỉ có nội dung) + `updated_at` |
+| `fb { stars, text, at }` | `feedback { rating, comment, updated_at \| created_at }` |
+
+  - Backend chỉ lưu nội dung lý do. Lịch bị từ chối thì ghi `by = 'admin'`. Lịch bị hủy thì không biết ai hủy, nên để trống `by` và `ReasonBox` không hiện dòng người hủy.
+- **`bookings/api.ts`:**
+  - Danh sách: `GET /admin/bookings?limit=10000`. Tổng quan, Đặt phòng và Báo cáo dùng chung danh sách này, lọc ở client.
+  - Duyệt: `PUT /admin/bookings/:id/approve | reject | cancel` với `{ reason }`.
+- **`bookings/hooks.ts`:**
+  - `useBookingsQuery()` chỉ chạy khi là admin.
+  - `useDecideBooking()`: xử lý xong thì tải lại lịch đặt và phòng (vì số lịch sắp tới của phòng thay đổi).
+  - `useBookings()` giữ nguyên cách gọi, End-User vẫn đọc dữ liệu mẫu.
+- **`DecideDialog`:** Chấp nhận, Từ chối, Hủy khẩn cấp đều gọi API. Thành công thì hiện toast và đóng hộp thoại. Lỗi (ví dụ lịch vừa được xử lý ở nơi khác, backend trả 400) thì hiện toast đỏ.
+- **Mã đặt phòng:** dùng `booking_code` của backend. Dữ liệu mẫu vẫn tự sinh mã như cũ.
+- **Tổng quan:** dùng giờ thật (`shared/lib/clock.ts`) thay cho đồng hồ mẫu, vì dữ liệu admin đã là dữ liệu thật.
+- Các màn tự lấy dữ liệu thật mà không phải sửa: Đặt phòng (danh sách, tab đếm trạng thái, chi tiết), Báo cáo, số chờ duyệt ở thanh bên.
+
+**Kiểm tra:**
+- `tsc --noUnusedLocals` qua, 6/6 test qua (thêm 2 test cho hàm chuyển đổi), build thành công, không có import vòng.
+- Đã chạy hàm chuyển đổi trên dữ liệu thật: lấy 12 lịch đặt từ `GET /admin/bookings`, tất cả chuyển đúng trạng thái, giờ, mã, lý do và đánh giá.
+- Chưa bấm Chấp nhận, Từ chối hay Hủy trên dữ liệu thật, để tránh ghi vào DB.
+
+**Lưu ý:**
+- Phía End-User (tìm phòng, đặt phòng, lịch sử, hủy, đánh giá) vẫn dùng dữ liệu mẫu.
+- Chi tiết booking chưa gọi `GET /admin/bookings/:id`. Mọi thông tin hiển thị đã có sẵn trong danh sách, còn thành viên lấy từ chi tiết nhóm (mục 10).
+
+---
+
+### 12. Loading skeleton cho màn Quản lý đặt phòng
+
+- **`shared/ui/feedback.tsx`:** thêm `Skeleton` (thanh xám nhấp nháy, không nhấp nháy khi người dùng bật giảm chuyển động) và `SkeletonRows` (dòng giả cho bảng).
+- **`AdminBookingsPage`, khi đang tải:**
+  - Hiện 8 dòng giả với độ rộng gần giống dữ liệu thật; số đếm trên các tab cũng là thanh giả.
+  - Ẩn dòng "Không có dữ liệu" và thanh phân trang.
+  - Bảng có `aria-busy`, kèm dòng ẩn cho trình đọc màn hình.
+  - Tải lỗi thì hiện thông báo phía trên bảng.
+- **Kiểm tra:** chạy Dia ở chế độ chạy ngầm với profile tạm, điều khiển qua DevTools Protocol, giữ request `/admin/bookings` lại vài giây rồi chụp màn hình lúc đang tải và lúc đã tải. Skeleton hiện đúng, dữ liệu thật thay vào đúng chỗ.
+- **Phát hiện thêm (chưa sửa):** ở độ rộng 1440px, bảng với dữ liệu thật rộng hơn khung chứa, cột "Thao tác" bị đẩy ra ngoài, phải cuộn ngang.
+
+### 13. Mapping API đánh giá (reviews) — bảng `feedbacks`
+
+Ở backend, đánh giá nằm trong bảng `feedbacks` (`feedback_id`, `booking_id` unique, `rating`, `comment`, `created_at`, `updated_at`), mỗi booking tối đa một đánh giá.
+
+| Nơi dùng | Nguồn |
+|---|---|
+| Điểm TB, số lượt đánh giá của phòng | `avg_rating`, `rating_count` trong `RoomResponse` (mục 7) |
+| Phản hồi trong chi tiết booking (Admin) | `feedback` trong `BookingItemResponse` (mục 11) |
+| Đánh giá gần đây trong chi tiết phòng | `GET /rooms/:id` → `recent_feedbacks` (mới) |
+
+- **`features/reviews/` (mới):**
+  - `model.ts`: kiểu `Review { id, bookingId, stars, text, at }`.
+  - `api.ts`: hàm chuyển đổi `toReview` (`feedback_id`, `booking_id`, `rating`, `comment`, `created_at`) và `fetchRoomReviews(roomId)`.
+  - `hooks.ts`: `useRoomReviews(roomId)`.
+- **`GET /rooms/:id`:** tài khoản nào cũng gọi được (không cần quyền admin), trả về phòng kèm 10 đánh giá gần nhất.
+- **`RoomDetailDialog`** (chi tiết phòng ở màn Tìm phòng):
+  - Đánh giá gần đây và điểm trung bình lấy từ backend, thay cho việc lọc từ booking mẫu.
+  - Đang tải thì hiện skeleton, lỗi thì hiện thông báo.
+  - Id phòng mẫu đã khớp backend (mục 7) nên End-User cũng thấy đánh giá thật.
+
+**Kiểm tra:**
+- `tsc --noUnusedLocals` qua, 6/6 test qua, build thành công, không có import vòng.
+- Đã gọi `GET /rooms/1` với tài khoản thường `SV2026001`: trả 1 đánh giá 4 sao, khớp mapping.
+- Chưa xem trên giao diện.
+
+**Chưa làm:**
+- Gửi và sửa đánh giá (`POST/PUT /bookings/:id/feedback` với `{ rating, comment, tags }`). Booking phía End-User vẫn là dữ liệu mẫu, id không trùng với booking thật, nên phải nối lịch sử đặt phòng (`/bookings/my`) trước.
+
+---
+
+### 14. Tổng quan và Báo cáo & thống kê: bỏ hết dữ liệu mẫu còn sót
+
+Theo yêu cầu, frontend vẫn tự tải dữ liệu về và tự tính (chưa dùng `/admin/dashboard`, `/admin/reports/bookings`).
+
+Hai màn này đã đọc lịch đặt, phòng, người dùng, nhóm từ API (mục 7–11). Còn sót lại:
+- **Khoảng ngày mặc định của Báo cáo cố định 01–30/11/2026** (theo dữ liệu mẫu). Đã đổi thành tháng hiện tại bằng `monthRange()` trong `shared/lib/clock.ts`.
+- **Trong lúc tải, hai màn hiện số 0 và "Không có dữ liệu".** Đã thêm `StatsSkeleton` (`shared/ui/feedback.tsx`) cho cả hai màn khi lịch đặt, phòng, người dùng hoặc nhóm chưa tải xong. Có lỗi thì hiện thông báo.
+
+**Đối chiếu với số liệu backend tự tính:**
+- Báo cáo tháng 11 (`/admin/reports/bookings`) khớp hoàn toàn:
+  - 12 booking, 5 chấp nhận, 2 không chấp nhận hoặc đã hủy, 5 chờ duyệt.
+  - Theo phòng: A1 6, Họp Tầng 2 3, A2 2, Hội trường C 1.
+  - Theo nhóm khớp từng dòng.
+  - Tỷ lệ chấp nhận 71% so với 71,4% của backend (làm tròn).
+- Tổng quan (`/admin/dashboard`): chờ duyệt 5, lịch hôm nay 0, phòng bảo trì 0, khớp backend.
+  - Ô người dùng hiện **9/10**, backend tính **10/11**, vì danh sách người dùng của frontend không có tài khoản admin (mục 9).
+
+**Kiểm tra:**
+- `tsc --noUnusedLocals` qua, 6/6 test qua, build thành công.
+- Chụp màn hình bằng Dia chạy ngầm: Tổng quan lúc đang tải (skeleton) và lúc đã tải; Báo cáo đầy đủ.
+
+---
+
 ## Trạng thái hiện tại
 
 | Phần | Nguồn dữ liệu |
 |---|---|
 | Đăng nhập, phiên đăng nhập | Backend |
 | Phòng (Admin) | Backend |
-| Phòng (End-User), booking, người dùng, nhóm, dashboard, báo cáo, đổi mật khẩu | Dữ liệu mẫu (`mocks/`) |
+| Người dùng (Admin) | Backend |
+| Nhóm người dùng (Admin) | Backend |
+| Đặt phòng, Tổng quan, Báo cáo (Admin) | Backend (Tổng quan, Báo cáo do frontend tự tính từ dữ liệu thật) |
+| Đánh giá: điểm TB phòng, phản hồi trong booking, đánh giá gần đây trong chi tiết phòng | Backend |
+| Toàn bộ phía End-User (tìm phòng, đặt phòng, lịch sử, hủy, đánh giá), đổi mật khẩu | Dữ liệu mẫu (`mocks/`) |
 
 ## Còn tồn đọng / lưu ý
 
-- **Chưa chạy thử với backend thật:** lúc làm, backend (`localhost:8080`) chưa chạy. Mới kiểm tra bằng typecheck, test và build.
-- Id phòng trong dữ liệu mẫu giả định DB được seed mới với id từ 1 đến 7. Nếu khác, tên phòng trong booking mẫu sẽ lệch cho đến khi nối API booking.
+- Mới gọi thử các API GET với backend thật. Chưa thử thêm, sửa hay xóa phòng, người dùng, nhóm, hay duyệt lịch đặt qua giao diện.
+- Đổi mật khẩu chưa nối backend (xem mục 9).
 - End-User chưa có API liệt kê toàn bộ phòng (chỉ có `/rooms/available` theo khung giờ), nên màn Tìm phòng vẫn dùng dữ liệu mẫu.
 - Danh sách phòng của admin lấy hết một lần rồi lọc ở client. Nếu số phòng lớn, chuyển sang truyền `keyword`/`page` lên server.
-- Các thay đổi chưa được commit.
 
 ## Việc tiếp theo
 
-1. Bật backend, chạy thử đăng nhập và màn Phòng.
-2. Nối Đặt phòng (Admin): danh sách, chi tiết, duyệt / từ chối / hủy.
-3. Nối Người dùng, Nhóm, Tổng quan, Báo cáo.
-4. Nối phía End-User: Tìm phòng (`/rooms/available`), đặt phòng, lịch sử, đánh giá, đổi mật khẩu (`PUT /auth/change-password`).
-5. Xóa dần `mocks/` khi mỗi màn đã nối xong.
+1. Chạy thử trên giao diện với backend: thêm/sửa phòng, người dùng, nhóm; duyệt / từ chối / hủy lịch đặt.
+2. Nối Đổi mật khẩu (`PUT /auth/change-password`).
+3. Nối phía End-User: Tìm phòng (`/rooms/available`), đặt phòng (`POST /bookings`), lịch sử (`/bookings/my`), hủy, đánh giá, nhóm của tôi (`/my/groups`).
+4. Xóa dần `mocks/` khi mỗi màn đã nối xong.

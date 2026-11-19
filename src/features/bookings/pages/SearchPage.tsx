@@ -57,7 +57,7 @@ export default function SearchPage() {
           <Field label="Tiện ích" id="s-am" className="max-md:col-span-2"><MultiPick id="s-am" placeholder="Chọn tiện ích" options={AMENITIES.map(a => ({ value: a, text: a }))} value={f.amenities} onChange={amenities => setF({ ...f, amenities })} /></Field>
           <Field label="Nhóm sử dụng" id="s-group" className="max-md:col-span-2">
             <div className="field"><Icon n="user" /><select id="s-group" className="inp" value={f.group} onChange={e => setF({ ...f, group: e.target.value })}>
-              <option value="">Cá nhân</option>{myGroups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.members.length})</option>)}
+              <option value="">Cá nhân</option>{myGroups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.count})</option>)}
             </select></div>
           </Field>
         </div>

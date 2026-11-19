@@ -1,16 +1,16 @@
 // A4 — Tạo / Sửa người dùng (modal)
 import { useState, type FormEvent } from 'react'
-import { Field, Modal, MultiPick, inp } from '../../../shared/ui'
+import { Field, Icon, Modal, MultiPick, inp } from '../../../shared/ui'
 import { useGroups } from '../../groups/hooks'
-import { useUserActions } from '../hooks'
+import { useSaveUser } from '../hooks'
 import type { Sex, User } from '../model'
 
 export function UserForm({ user, onClose }: { user: User | null; onClose: () => void }) {
   const groups = useGroups()
-  const { saveUser } = useUserActions()
+  const save = useSaveUser()
   const [v, setV] = useState({ id: user?.id ?? '', name: user?.name ?? '', sex: (user?.sex ?? 'Nam') as Sex, active: user?.active ?? true })
-  const [gs, setGs] = useState(() => groups.filter(g => user && g.members.includes(user.id)).map(g => String(g.id)))
-  const [e, setE] = useState<{ id?: string; name?: string }>({})
+  const [gs, setGs] = useState(() => (user?.inGroups ?? []).map(g => String(g.id)))
+  const [e, setE] = useState<{ id?: string; name?: string; form?: string }>({})
 
   const submit = (ev: FormEvent) => {
     ev.preventDefault()
@@ -18,17 +18,20 @@ export function UserForm({ user, onClose }: { user: User | null; onClose: () => 
     if (!v.id.trim()) er.id = 'Vui lòng nhập mã định danh'
     if (!v.name.trim()) er.name = 'Vui lòng nhập họ và tên'
     if (!er.id && !er.name) {
-      const dup = saveUser({ ...v, id: v.id.trim(), name: v.name.trim() }, gs.map(Number), user?.id)
-      if (!dup) return onClose()
-      er.id = dup
+      save.mutate({ user: { ...v, id: v.id.trim(), name: v.name.trim() }, groupIds: gs.map(Number), orig: user?.id }, {
+        onSuccess: onClose,
+        // 409 trùng mã → báo ở ô Mã định danh; lỗi khác (mất kết nối…) báo đầu form.
+        onError: err => setE(err.message.startsWith('Mã định danh') ? { id: err.message } : { form: err.message }),
+      })
     }
     setE(er)
   }
 
   return (
     <Modal title={user ? 'Sửa người dùng' : 'Tạo người dùng'} onClose={onClose}
-      footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn bp" form="user-form">{user ? 'Lưu cập nhật' : 'Lưu'}</button></>}>
+      footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn bp" form="user-form" disabled={save.isPending}>{user ? 'Lưu cập nhật' : 'Lưu'}</button></>}>
       <form id="user-form" className="mb" onSubmit={submit} noValidate>
+        {e.form && <div className="alert" role="alert"><Icon n="alert" />{e.form}</div>}
         <Field label="Mã định danh" req id="u-id" err={e.id} hint="Mã NV / SV / GV. Dùng làm tên đăng nhập và mật khẩu mặc định.">
           <input id="u-id" className={inp(e.id)} value={v.id} onChange={ev => setV({ ...v, id: ev.target.value })} />
         </Field>

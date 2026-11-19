@@ -20,7 +20,7 @@ export default function AccountPage() {
       </div>
       <div>
         <div className="muted text-[13px] font-semibold mb-1.5">Nhóm đang thuộc</div>
-        <div className="flex flex-wrap gap-1.5">{myGroups.length ? myGroups.map(g => <span key={g.id} className="tag pill h-7! text-[13px]!">{g.name} · {g.members.length}</span>) : <span className="muted">Chưa thuộc nhóm nào</span>}</div>
+        <div className="flex flex-wrap gap-1.5">{myGroups.length ? myGroups.map(g => <span key={g.id} className="tag pill h-7! text-[13px]!">{g.name} · {g.count}</span>) : <span className="muted">Chưa thuộc nhóm nào</span>}</div>
       </div>
     </section>
     <nav className="card rounded-2xl! max-w-[480px]" aria-label="Tài khoản">

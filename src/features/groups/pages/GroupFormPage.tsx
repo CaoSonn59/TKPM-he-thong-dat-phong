@@ -5,17 +5,30 @@ import { Field, Icon, MultiPick, inp, usePaged } from '../../../shared/ui'
 import { dmy } from '../../../shared/lib/format'
 import { Page } from '../../../layouts/AdminPage'
 import { useUsers } from '../../users/hooks'
-import { useGroupActions, useGroups } from '../hooks'
+import { useToast } from '../../toast/hooks'
+import { useGroupDetailQuery, useSaveGroup } from '../hooks'
+import type { Group } from '../model'
 
 const Step = ({ n }: { n: number }) => <span className="inline-flex w-6 h-6 mr-2 items-center justify-center rounded-full bg-indigo-50 text-indigo-800 text-xs font-bold">{n}</span>
 
+// /admin/nhom/moi → tạo mới; /admin/nhom/:id → tải chi tiết nhóm (GET /admin/groups/:id) rồi mới dựng form.
 export default function GroupFormPage() {
   const { id } = useParams()
+  const isNew = id === 'moi'
+  const { data: g, error } = useGroupDetailQuery(isNew ? undefined : Number(id))
+  if (!isNew && !g) return (
+    <Page narrow title="Sửa nhóm" crumb={<><Link to="/admin/nhom">Nhóm người dùng</Link> / Sửa nhóm</>}>
+      {error ? <div className="alert" role="alert"><Icon n="alert" />{error.message}</div> : <p className="muted">Đang tải…</p>}
+    </Page>
+  )
+  return <GroupForm g={g} />
+}
+
+function GroupForm({ g }: { g?: Group }) {
   const nav = useNavigate()
-  const groups = useGroups()
   const users = useUsers()
-  const { saveGroup } = useGroupActions()
-  const g = groups.find(x => x.id === Number(id))
+  const saveGroup = useSaveGroup()
+  const toast = useToast()
   const [name, setName] = useState(g?.name ?? '')
   const [members, setMembers] = useState(g?.members ?? [])
   const [pick, setPick] = useState<string[]>([])
@@ -26,8 +39,12 @@ export default function GroupFormPage() {
   const title = g ? `Sửa nhóm: ${g.name}` : 'Tạo nhóm'
 
   const save = () => {
-    const er = name.trim() ? saveGroup({ id: g?.id ?? 0, name: name.trim(), members }) : 'Vui lòng nhập tên nhóm'
-    if (er) setErr(er); else nav('/admin/nhom')
+    if (!name.trim()) return setErr('Vui lòng nhập tên nhóm')
+    saveGroup.mutate({ id: g?.id, name: name.trim(), members }, {
+      onSuccess: () => nav('/admin/nhom'),
+      // 409 trùng tên → báo ở ô Tên nhóm; lỗi khác (mất kết nối…) báo bằng toast.
+      onError: e => e.message.startsWith('Tên nhóm') ? setErr(e.message) : toast('Không lưu được nhóm', e.message, true),
+    })
   }
 
   return (
@@ -35,7 +52,7 @@ export default function GroupFormPage() {
       foot={
         <div className="foot">
           <span className="small muted">{g ? `Tạo ngày ${dmy(g.created)}` : 'Nhóm mới'}</span>
-          <div className="flex gap-2"><Link className="btn" to="/admin/nhom">Hủy</Link><button className="btn bp" onClick={save}>{g ? 'Lưu cập nhật' : 'Lưu'}</button></div>
+          <div className="flex gap-2"><Link className="btn" to="/admin/nhom">Hủy</Link><button className="btn bp" disabled={saveGroup.isPending} onClick={save}>{g ? 'Lưu cập nhật' : 'Lưu'}</button></div>
         </div>
       }>
       <section className="card">

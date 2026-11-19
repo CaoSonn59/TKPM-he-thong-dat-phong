@@ -1,9 +1,5 @@
 import { api } from '../../shared/api/http'
-
-export interface ApiUser {
-  user_id: string; full_name: string; gender: string; role: 'Admin' | 'User'; status: string
-  created_at: string; groups: { group_id: number; group_name: string }[]
-}
+import type { ApiUser } from '../users/api'
 export interface LoginRes { token: string; expires_at: string; user: ApiUser }
 
 export const loginApi = (id: string, password: string) =>

@@ -1,11 +1,10 @@
 import { dmy } from '../../shared/lib/format'
 
-
 export type Status = 'wait' | 'ok' | 'live' | 'done' | 'no' | 'cancel'
 export interface Booking {
-  id: number; title: string; roomId: number; by: string; groupId: number | null
+  id: number; code?: string; title: string; roomId: number; by: string; groupId: number | null
   date: string; from: string; to: string; status: Status; sent: string
-  reason?: { text: string; by: 'admin' | 'user'; at: string }
+  reason?: { text: string; by?: 'admin' | 'user'; at: string } // by: không rõ khi backend không lưu ai hủy
   fb?: { stars: number; text: string; at: string }
 }
 
@@ -17,4 +16,4 @@ export const STATUS: Record<Status, [label: string, cls: string]> = {
 export const STATUSES = Object.keys(STATUS) as Status[]
 
 export const when = (b: Pick<Booking, 'date' | 'from' | 'to'>) => `${dmy(b.date)} ${b.from}–${b.to}`
-export const code = (b: Booking) => `#BK-2611-${String(b.id).padStart(3, '0')}`
+export const code = (b: Booking) => b.code ?? `#BK-2611-${String(b.id).padStart(3, '0')}` // dữ liệu mẫu không có mã
