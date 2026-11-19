@@ -7,3 +7,13 @@ export const monthRange = (d = new Date()) => ({
   from: today(new Date(d.getFullYear(), d.getMonth(), 1)),
   to: today(new Date(d.getFullYear(), d.getMonth() + 1, 0)),
 })
+
+// Ghép ngày YYYY-MM-DD + giờ HH:MM thành RFC3339 kèm múi giờ (mặc định +07:00 hoặc múi giờ máy nếu được truyền).
+// Ví dụ: toIsoDateTime('2026-11-20', '09:00') → '2026-11-20T09:00:00+07:00'.
+export function toIsoDateTime(date: string, hm: string, offsetMinutes = -new Date().getTimezoneOffset()): string {
+  const sign = offsetMinutes >= 0 ? '+' : '-'
+  const abs = Math.abs(offsetMinutes)
+  const hh = pad(Math.floor(abs / 60))
+  const mm = pad(abs % 60)
+  return `${date}T${hm}:00${sign}${hh}:${mm}`
+}

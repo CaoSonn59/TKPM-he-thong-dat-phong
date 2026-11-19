@@ -12,18 +12,23 @@ function Dlg({ label, onClose, className, children }: { label: string; onClose: 
   )
 }
 
-export function Modal({ title, head, bare, w = 'md:max-w-[560px]', onClose, children, footer }: {
-  title: string; head?: ReactNode; bare?: boolean; w?: string; onClose: () => void; children: ReactNode; footer?: ReactNode
+export function Modal({ title, head, bare, mobileBack, w = 'md:max-w-[560px]', onClose, children, footer }: {
+  title: string; head?: ReactNode; bare?: boolean; mobileBack?: boolean; w?: string; onClose: () => void; children: ReactNode; footer?: ReactNode
 }) {
   return (
-    <Dlg label={title} onClose={onClose} className={`modal ${w}`}>
+    <Dlg label={title} onClose={onClose} className={`modal ${mobileBack ? 'max-md:h-full max-md:max-h-full max-md:rounded-none!' : ''} ${w}`}>
       {!bare && (
         <div className="flex items-start justify-between gap-3 px-6 py-[18px] border-b border-gray-200">
-          {head ?? <h2 className="text-lg font-bold">{title}</h2>}
-          <button type="button" className="ib" aria-label="Đóng" onClick={onClose}><Icon n="x" /></button>
+          {mobileBack ? (
+            <div className="flex items-center gap-2.5">
+              <button type="button" className="ib md:hidden -ml-2" aria-label="Quay lại" onClick={onClose}><Icon n="left" s={20} /></button>
+              {head ?? <h2 className="text-lg font-bold">{title}</h2>}
+            </div>
+          ) : (head ?? <h2 className="text-lg font-bold">{title}</h2>)}
+          <button type="button" className={`ib ${mobileBack ? 'max-md:hidden' : ''}`} aria-label="Đóng" onClick={onClose}><Icon n="x" /></button>
         </div>
       )}
-      <div className="overflow-y-auto">{children}</div>
+      <div className="overflow-y-auto flex-1">{children}</div>
       {footer && <div className="mf">{footer}</div>}
     </Dlg>
   )
@@ -32,9 +37,9 @@ export function Modal({ title, head, bare, w = 'md:max-w-[560px]', onClose, chil
 export const Drawer = ({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) =>
   <Dlg label={label} onClose={onClose} className="drawer">{children}</Dlg>
 
-export function Confirm({ title, children, icon = 'x', tone = 'red', ok = 'Đồng ý', cancel = 'Hủy', reason, hint, placeholder, onOk, onClose }: {
+export function Confirm({ title, children, icon = 'x', tone = 'red', ok = 'Đồng ý', cancel = 'Hủy', reason, hint, placeholder, busy, onOk, onClose }: {
   title: string; children: ReactNode; icon?: IconName; tone?: 'red' | 'green'; ok?: string; cancel?: string
-  reason?: string; hint?: string; placeholder?: string; onOk: (reason: string) => void; onClose: () => void
+  reason?: string; hint?: string; placeholder?: string; busy?: boolean; onOk: (reason: string) => void; onClose: () => void
 }) {
   const [text, setText] = useState('')
   return (
@@ -46,14 +51,14 @@ export function Confirm({ title, children, icon = 'x', tone = 'red', ok = 'Đồ
           <div className="text-gray-600">{children}</div>
           {reason && <>
             <label className="lb mt-3.5" htmlFor="cf-reason">{reason}</label>
-            <textarea id="cf-reason" className="inp" placeholder={placeholder} value={text} onChange={e => setText(e.target.value)} />
+            <textarea id="cf-reason" className="inp" placeholder={placeholder} value={text} disabled={busy} onChange={e => setText(e.target.value)} />
             {hint && <div className="hint">{hint}</div>}
           </>}
         </div>
       </div>
       <div className="mf">
-        <button className="btn" onClick={onClose}>{cancel}</button>
-        <button className={`btn ${tone === 'red' ? 'bd' : 'bp'}`} onClick={() => onOk(text)}>{ok}</button>
+        <button className="btn" disabled={busy} onClick={onClose}>{cancel}</button>
+        <button className={`btn ${tone === 'red' ? 'bd' : 'bp'}`} disabled={busy} onClick={() => onOk(text)}>{ok}</button>
       </div>
     </Dlg>
   )

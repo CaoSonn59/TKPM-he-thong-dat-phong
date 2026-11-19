@@ -335,28 +335,51 @@ Hai màn này đã đọc lịch đặt, phòng, người dùng, nhóm từ API 
 
 ---
 
+### 15. Mapping toàn bộ API phía End-User & xóa sạch dữ liệu mẫu (nhánh `user`)
+
+Gộp cấu trúc chuẩn từ `main` sang nhánh `user`, giữ lại các tối ưu UI mobile/desktop của nhánh `user` (`vercel.json`, icon lọc/tải lại/spin, nút quay lại modal trên mobile, hiển thị điểm đánh giá gọn trên mobile) và nối toàn bộ phần End-User + Đổi mật khẩu với backend:
+
+| Màn / Chức năng | API đã nối | Ghi chú |
+|---|---|---|
+| Phiên & Tài khoản (`AccountPage`, `UserLayout`) | `GET /auth/me` | Đồng bộ thông tin user và nhóm trực thuộc mới nhất; xóa cache React Query khi đăng nhập/đăng xuất/401 |
+| Đổi mật khẩu (`ChangePassword`, cả Admin & End-User) | `PUT /auth/change-password` | Payload `{ current_password, new_password, confirm_password }`; truyền `skipAuthRedirect: true` để nhập sai mật khẩu hiện tại không bị đăng xuất nhầm |
+| Nhóm của tôi (`SearchPage`, `BookFormDialog`, `AccountPage`, `Members`) | `GET /my/groups`, `GET /my/groups/:id` | Tự hỗ trợ cả response mảng lẫn `{ items }`; chi tiết thành viên tải theo nhu cầu khi xem booking |
+| Tìm phòng trống (`SearchPage`) | `GET /rooms/available?start_time=&end_time=&min_capacity=&amenities=` | Thời gian gửi chuẩn RFC3339 (`toIsoDateTime` trong `shared/lib/clock.ts`), dùng giờ thật |
+| Chi tiết phòng (`RoomDetailDialog`, `UserBookingDetail`) | `GET /rooms/:id` | Lấy thông tin phòng, tiện ích, điểm TB và đánh giá gần đây từ backend |
+| Đặt phòng (`BookFormDialog`) | `POST /bookings` | Payload `{ room_id, title, start_time, end_time, group_id }`; bắt lỗi `409 Conflict` qua `ApiError` để báo trùng lịch và tự tải lại danh sách phòng trống |
+| Lịch sử & Chi tiết đặt phòng (`HistoryPage`, `UserBookingDetail`) | `GET /bookings/my`, `GET /bookings/:id` | Có loading skeleton (bảng desktop + card mobile) và thông báo lỗi |
+| Hủy lịch đặt (`HistoryPage`, `UserBookingDetail`) | `PUT /bookings/:id/cancel` | Payload `{ reason }`, khóa nút trong lúc gửi (`Confirm.busy`) và invalidate cache |
+| Gửi / Sửa đánh giá (`RateDialog`) | `POST /bookings/:id/feedback`, `PUT /bookings/:id/feedback` | Payload `{ rating, comment, tags }`; lưu xong invalidate cả lịch sử booking lẫn chi tiết phòng |
+
+**Dọn phần thừa:**
+- Xóa toàn bộ file cấu trúc phẳng cũ của nhánh `user` (`src/Login.tsx`, `src/main.tsx`, `src/parts.tsx`, `src/store.tsx`, `src/ui.tsx`, `src/data.ts`, `src/logic.ts`, `src/logic.test.ts`, `src/index.css`, `src/user/*`).
+- Xóa toàn bộ thư mục `src/mocks/` (`clock.ts`, `seed.ts`), `src/shared/lib/nextId.ts` và 4 mock store (`rooms/store.ts`, `groups/store.ts`, `bookings/store.ts`, `users/store.ts`).
+
+**Kiểm tra:**
+- `npx tsc --noEmit --noUnusedLocals` qua không lỗi.
+- `npm test` qua 9/9 test (thêm unit test cho `pwClientErrors`, `toBookingBody`, `toIsoDateTime`).
+- `npm run build` thành công, không vi phạm quy tắc DIP (`pages/`/`components/` không import `store.ts` hay `api.ts`).
+
+---
+
 ## Trạng thái hiện tại
 
 | Phần | Nguồn dữ liệu |
 |---|---|
-| Đăng nhập, phiên đăng nhập | Backend |
-| Phòng (Admin) | Backend |
+| Đăng nhập, phiên đăng nhập, `/auth/me`, đổi mật khẩu | Backend |
+| Phòng (Admin & End-User `/rooms/available`, `/rooms/:id`) | Backend |
 | Người dùng (Admin) | Backend |
-| Nhóm người dùng (Admin) | Backend |
+| Nhóm người dùng (Admin & End-User `/my/groups`, `/my/groups/:id`) | Backend |
 | Đặt phòng, Tổng quan, Báo cáo (Admin) | Backend (Tổng quan, Báo cáo do frontend tự tính từ dữ liệu thật) |
-| Đánh giá: điểm TB phòng, phản hồi trong booking, đánh giá gần đây trong chi tiết phòng | Backend |
-| Toàn bộ phía End-User (tìm phòng, đặt phòng, lịch sử, hủy, đánh giá), đổi mật khẩu | Dữ liệu mẫu (`mocks/`) |
+| Lịch sử đặt phòng, tạo/hủy đặt phòng (End-User) | Backend |
+| Đánh giá: điểm TB phòng, phản hồi trong booking, gửi/sửa đánh giá | Backend |
 
 ## Còn tồn đọng / lưu ý
 
-- Mới gọi thử các API GET với backend thật. Chưa thử thêm, sửa hay xóa phòng, người dùng, nhóm, hay duyệt lịch đặt qua giao diện.
-- Đổi mật khẩu chưa nối backend (xem mục 9).
-- End-User chưa có API liệt kê toàn bộ phòng (chỉ có `/rooms/available` theo khung giờ), nên màn Tìm phòng vẫn dùng dữ liệu mẫu.
-- Danh sách phòng của admin lấy hết một lần rồi lọc ở client. Nếu số phòng lớn, chuyển sang truyền `keyword`/`page` lên server.
+- Chưa kiểm thử end-to-end các thao tác ghi (`POST`/`PUT`/`DELETE`) trực tiếp trên backend chạy thật; cần đối chiếu nhanh tên field request/response của các endpoint End-User (`/auth/change-password`, `/my/groups`, `/rooms/available`, `/bookings/my`, `/bookings`, `/bookings/:id/cancel`, `/bookings/:id/feedback`) khi chạy cùng server `dat-phong-backend`.
+- Danh sách phòng/booking của admin lấy hết một lần rồi lọc ở client. Nếu dữ liệu lớn, chuyển sang phân trang/lọc phía server.
 
 ## Việc tiếp theo
 
-1. Chạy thử trên giao diện với backend: thêm/sửa phòng, người dùng, nhóm; duyệt / từ chối / hủy lịch đặt.
-2. Nối Đổi mật khẩu (`PUT /auth/change-password`).
-3. Nối phía End-User: Tìm phòng (`/rooms/available`), đặt phòng (`POST /bookings`), lịch sử (`/bookings/my`), hủy, đánh giá, nhóm của tôi (`/my/groups`).
-4. Xóa dần `mocks/` khi mỗi màn đã nối xong.
+1. Chạy thử toàn bộ luồng End-User và Admin với backend `dat-phong-backend` thật để xác nhận khớp 100% schema request/response.
+2. Merge nhánh `user` vào `main` sau khi test thực tế với backend đạt yêu cầu.

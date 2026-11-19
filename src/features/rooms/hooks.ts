@@ -2,9 +2,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useIsAdmin } from '../auth/hooks'
 import { useToast } from '../toast/hooks'
-import { fetchRooms, saveRoomApi, type RoomInput } from './api'
+import { fetchAvailableRooms, fetchRooms, saveRoomApi, type AvailableRoomsParams, type RoomInput } from './api'
 import type { Room } from './model'
-import { useRoomsStore } from './store'
 
 const KEY = ['rooms']
 const NONE: Room[] = []
@@ -12,13 +11,17 @@ const NONE: Room[] = []
 // Admin: GET /admin/rooms.
 export const useRoomsQuery = () => useQuery({ queryKey: KEY, queryFn: fetchRooms, enabled: useIsAdmin() })
 
-// shortcut: End-User chưa có API liệt kê phòng (backend chỉ có /rooms/available theo khung giờ)
-// nên vẫn đọc dữ liệu mẫu; đổi khi nối màn Tìm phòng.
+// End-User: GET /rooms/available theo khung giờ + bộ lọc.
+export const useAvailableRoomsQuery = (q: AvailableRoomsParams | null) =>
+  useQuery({
+    queryKey: [...KEY, 'available', q?.date, q?.from, q?.to, q?.min ?? '', (q?.amenities ?? []).join(',')],
+    queryFn: () => fetchAvailableRooms(q!),
+    enabled: !!q,
+  })
+
 export function useRooms() {
-  const isAdmin = useIsAdmin()
   const { data } = useRoomsQuery()
-  const mock = useRoomsStore(s => s.rooms)
-  return isAdmin ? data ?? NONE : mock
+  return data ?? NONE
 }
 
 // POST /admin/rooms (thêm) hoặc PUT /admin/rooms/:id (sửa), xong thì tải lại danh sách.
@@ -37,6 +40,6 @@ export function useSaveRoom() {
 // Phòng chưa tải xong / đã bị xóa vẫn trả về object để màn hình không vỡ.
 export function useRoomOf() {
   const rooms = useRooms()
-  return (id: number): Room => rooms.find(r => r.id === id)
-    ?? { id, name: '—', min: 0, max: 0, building: '—', floor: '—', amenities: [], maint: false, rate: null, votes: 0 }
+  return (id: number, fallbackName?: string): Room => rooms.find(r => r.id === id)
+    ?? { id, name: fallbackName || '—', min: 0, max: 0, building: '—', floor: '—', amenities: [], maint: false, rate: null, votes: 0 }
 }

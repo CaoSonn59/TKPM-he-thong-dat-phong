@@ -8,13 +8,16 @@ import { useAuthStore } from '../features/auth/store'
 import { Toasts } from '../features/toast/Toasts'
 import App from './App'
 
+const queryClient = new QueryClient()
+
 // Composition root: nối http client với phiên đăng nhập (DIP) rồi dựng các provider.
 configureHttp({
   getToken: () => useAuthStore.getState().token,
-  onUnauthorized: () => useAuthStore.getState().logout(), // token hết hạn / tài khoản bị khóa → về màn đăng nhập
+  onUnauthorized: () => {
+    useAuthStore.getState().logout()
+    queryClient.clear()
+  }, // token hết hạn / tài khoản bị khóa → xóa cache và về màn đăng nhập
 })
-
-const queryClient = new QueryClient()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

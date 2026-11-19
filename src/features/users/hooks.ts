@@ -4,7 +4,6 @@ import { useAuthStore } from '../auth/store'
 import { useToast } from '../toast/hooks'
 import { fetchUsers, saveUserApi, type UserInput } from './api'
 import type { User } from './model'
-import { useUsersStore } from './store'
 
 const KEY = ['users']
 const NONE: User[] = []
@@ -13,13 +12,9 @@ const useIsAdmin = () => useAuthStore(s => s.isAdmin) // đọc thẳng store đ
 // Admin: GET /admin/users.
 export const useUsersQuery = () => useQuery({ queryKey: KEY, queryFn: fetchUsers, enabled: useIsAdmin() })
 
-// shortcut: End-User không gọi được /admin/users (403) nên vẫn đọc dữ liệu mẫu (useMe, thành viên nhóm…);
-// đổi khi nối phía End-User (GET /auth/me, GET /my/groups).
 export function useUsers() {
-  const isAdmin = useIsAdmin()
   const { data } = useUsersQuery()
-  const mock = useUsersStore(s => s.users)
-  return isAdmin ? data ?? NONE : mock
+  return data ?? NONE
 }
 
 // POST /admin/users (tạo) hoặc PUT /admin/users/:id (sửa), xong thì tải lại danh sách.
@@ -40,5 +35,8 @@ export function useSaveUser() {
 
 export function useUserLabel() {
   const users = useUsers()
-  return (id: string) => `${id} – ${users.find(u => u.id === id)?.name ?? ''}`
+  return (id: string, fallbackName?: string) => {
+    const name = users.find(u => u.id === id)?.name ?? fallbackName ?? ''
+    return name ? `${id} – ${name}` : id
+  }
 }

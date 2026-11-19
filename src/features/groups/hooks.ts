@@ -2,43 +2,63 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth/store'
 import { useToast } from '../toast/hooks'
-import { useUsers } from '../users/hooks'
-import { deleteGroupApi, fetchGroup, fetchGroups, saveGroupApi } from './api'
+import { deleteGroupApi, fetchGroup, fetchGroups, fetchMyGroupDetail, fetchMyGroups, saveGroupApi } from './api'
 import type { Group } from './model'
-import { useGroupsStore } from './store'
 
 const KEY = ['groups']
 const NONE: Group[] = []
 const useIsAdmin = () => useAuthStore(s => s.isAdmin) // đọc thẳng store để tránh import vòng với auth/hooks
+const useHasSession = () => !!useAuthStore(s => s.session)
 
 // Admin: GET /admin/groups.
 export const useGroupsQuery = () => useQuery({ queryKey: KEY, queryFn: fetchGroups, enabled: useIsAdmin() })
 
-// shortcut: End-User không gọi được /admin/groups (403) nên vẫn đọc dữ liệu mẫu; đổi khi nối GET /my/groups.
+// End-User: GET /my/groups.
+export const useMyGroupsQuery = () => {
+  const hasSession = useHasSession()
+  const isAdmin = useIsAdmin()
+  return useQuery({ queryKey: [...KEY, 'my'], queryFn: fetchMyGroups, enabled: hasSession && !isAdmin })
+}
+
 export function useGroups() {
   const isAdmin = useIsAdmin()
-  const { data } = useGroupsQuery()
-  const mock = useGroupsStore(s => s.groups)
-  return isAdmin ? data ?? NONE : mock
+  const admin = useGroupsQuery()
+  const mine = useMyGroupsQuery()
+  return isAdmin ? admin.data ?? NONE : mine.data ?? NONE
 }
 
 // Admin: GET /admin/groups/:id — chi tiết nhóm kèm toàn bộ thành viên.
 export const useGroupDetailQuery = (id?: number) =>
   useQuery({ queryKey: [...KEY, id], queryFn: () => fetchGroup(id!), enabled: useIsAdmin() && !!id })
 
-// Một nhóm kèm thành viên (memberList): Admin lấy từ API, End-User lấy từ dữ liệu mẫu.
+// End-User: GET /my/groups/:id — chỉ gọi khi danh sách /my/groups chưa kèm memberList.
+export const useMyGroupDetailQuery = (id?: number, enabled = true) => {
+  const hasSession = useHasSession()
+  const isAdmin = useIsAdmin()
+  return useQuery({
+    queryKey: [...KEY, 'my', id],
+    queryFn: () => fetchMyGroupDetail(id!),
+    enabled: hasSession && !isAdmin && !!id && enabled,
+    retry: false,
+  })
+}
+
+// Một nhóm kèm thành viên (memberList): Admin dùng /admin/groups/:id, End-User dùng /my/groups hoặc /my/groups/:id.
 export function useGroup(id: number | null) {
   const isAdmin = useIsAdmin()
-  const { data } = useGroupDetailQuery(id ?? undefined)
-  const mock = useGroupsStore(s => s.groups.find(g => g.id === id))
-  const users = useUsers()
-  if (isAdmin) return data
-  return mock && { ...mock, memberList: users.filter(u => mock.members?.includes(u.id)) }
+  const adminDetail = useGroupDetailQuery(id ?? undefined)
+  const myGroups = useMyGroupsQuery()
+  const cachedMyGroup = id ? myGroups.data?.find(g => g.id === id) : undefined
+  const needMyDetail = !isAdmin && !!id && !cachedMyGroup?.memberList
+  const myDetail = useMyGroupDetailQuery(id ?? undefined, needMyDetail)
+  if (isAdmin) return adminDetail.data
+  return cachedMyGroup?.memberList ? cachedMyGroup : myDetail.data ?? cachedMyGroup
 }
 
 export function useGroupName() {
   const groups = useGroups()
-  return (id: number | null) => id === null ? 'Cá nhân' : groups.find(g => g.id === id)?.name ?? '(nhóm đã xóa)'
+  return (id: number | null, fallbackName?: string) =>
+    id === null ? 'Cá nhân' : groups.find(g => g.id === id)?.name ?? (fallbackName || '(nhóm đã xóa)')
 }
 
 // Lưu / xóa nhóm làm đổi cả cột "Nhóm trực thuộc" của người dùng → tải lại nhóm và người dùng.

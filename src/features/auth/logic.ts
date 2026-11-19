@@ -1,12 +1,21 @@
 // Quy tắc mật khẩu (thuần, không phụ thuộc React) — có test ở logic.test.ts
 
 export interface PwErr { cur?: string; next?: string; again?: string }
-export function pwErrors(cur: string, next: string, again: string, realPw: string, ident: string): PwErr {
+
+// Kiểm tra phía client trước khi gửi PUT /auth/change-password (backend sẽ kiểm tra mật khẩu hiện tại).
+export function pwClientErrors(cur: string, next: string, again: string, ident: string): PwErr {
   const e: PwErr = {}
-  if (cur !== realPw) e.cur = 'Mật khẩu hiện tại không chính xác'
+  if (!cur) e.cur = 'Vui lòng nhập mật khẩu hiện tại'
   if (next.length < 6) e.next = 'Mật khẩu mới phải có ít nhất 6 ký tự'
   else if (next === cur || next === ident) e.next = 'Mật khẩu mới không được trùng mật khẩu hiện tại hoặc mã định danh'
   if (again !== next) e.again = 'Mật khẩu nhập lại không khớp'
+  return e
+}
+
+// Kiểm tra đầy đủ khi biết sẵn mật khẩu hiện tại (giữ để kiểm thử quy tắc).
+export function pwErrors(cur: string, next: string, again: string, realPw: string, ident: string): PwErr {
+  const e = pwClientErrors(cur, next, again, ident)
+  if (cur !== realPw) e.cur = 'Mật khẩu hiện tại không chính xác'
   return e
 }
 

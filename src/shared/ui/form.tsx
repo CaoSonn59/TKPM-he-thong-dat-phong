@@ -1,5 +1,5 @@
 import { useState, type InputHTMLAttributes, type ReactNode } from 'react'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 
 export const inp = (err?: unknown) => `inp ${err ? 'bad' : ''}`
 
@@ -28,8 +28,8 @@ export function PwInput({ bad, ...p }: InputHTMLAttributes<HTMLInputElement> & {
 
 export interface Opt { value: string; text: string; taken?: boolean }
 // Ô chọn nhiều dạng chip + gợi ý. `free`: cho nhập thêm giá trị mới bằng Enter.
-export function MultiPick({ options, value, onChange, placeholder, free, id, takenNote, label }: {
-  options: Opt[]; value: string[]; onChange: (v: string[]) => void; placeholder?: string; free?: boolean; id?: string; takenNote?: string; label?: string
+export function MultiPick({ options, value, onChange, placeholder, free, id, takenNote, label, icon }: {
+  options: Opt[]; value: string[]; onChange: (v: string[]) => void; placeholder?: string; free?: boolean; id?: string; takenNote?: string; label?: string; icon?: IconName
 }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
@@ -39,6 +39,7 @@ export function MultiPick({ options, value, onChange, placeholder, free, id, tak
   return (
     <div className="relative" onBlur={e => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
       <div className="multi">
+        {icon && value.length === 0 && <Icon n={icon} s={16} className="text-gray-500 ml-0.5" />}
         {value.map(v => (
           <span key={v} className="chip">{text(v)}
             <button type="button" aria-label={`Bỏ ${text(v)}`} onClick={() => toggle(v)}><Icon n="x" s={16} /></button>
